@@ -26,5 +26,5 @@ before_install:
 
 script:
   - make all
-  - ./gomakegen . -f gomakegen.make
+  - ./gomakegen . -o gomakegen.make
   - cat gomakegen.make
