@@ -93,7 +93,7 @@ func main() {
 // checkDir check directory with sources
 func checkDir(dir string) {
 	if !fsutil.IsExist(dir) {
-		printWarn("Directory %s is not exist", dir)
+		printWarn("Directory %s does not exist", dir)
 		os.Exit(1)
 	}
 
