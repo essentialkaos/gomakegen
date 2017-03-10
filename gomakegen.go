@@ -591,8 +591,8 @@ func (m *Makefile) getMetalinterTarget() string {
 	var result string
 
 	result += "metalinter:\n"
-	result += "\ttest -s $GOPATH/bin/gometalinter || go get -u github.com/alecthomas/gometalinter ; $GOPATH/bin/gometalinter --install\n"
-	result += "\t$GOPATH/bin/gometalinter --deadline 30s\n"
+	result += "\ttest -s $(GOPATH)/bin/gometalinter || go get -u github.com/alecthomas/gometalinter ; $(GOPATH)/bin/gometalinter --install\n"
+	result += "\t$(GOPATH)/bin/gometalinter --deadline 30s\n"
 	result += "\n"
 
 	return result
