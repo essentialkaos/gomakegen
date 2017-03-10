@@ -33,11 +33,11 @@ import (
 const (
 	APP  = "gomakegen"
 	VER  = "0.2.0"
-	DESC = "Utility for generating makefiles for golang applications"
+	DESC = "Utility for generating makefiles for Golang applications"
 )
 
 const (
-	ARG_GLIDE      = "g:glade"
+	ARG_GLIDE      = "g:glide"
 	ARG_METALINTER = "m:metalinter"
 	ARG_BENCHMARK  = "b:benchmark"
 	ARG_VERB_TESTS = "V:verbose"
