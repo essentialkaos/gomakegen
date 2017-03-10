@@ -29,10 +29,14 @@ Usage: gomakegen {options} dir
 
 Options
 
-  --output, -o       Output file (Makefile by default)
-  --no-color, -nc    Disable colors in output
-  --help, -h         Show this help message
-  --version, -v      Show version
+  --glide, -g         Add target to fetching dependecies with glide
+  --metalinter, -m    Add target with metalinter check
+  --benchmark, -b     Add target to run benchmarks
+  --verbose, -V       Enable verbose output for tests
+  --output, -o        Output file (Makefile by default)
+  --no-color, -nc     Disable colors in output
+  --help, -h          Show this help message
+  --version, -v       Show version
 
 Examples
 
@@ -41,6 +45,7 @@ Examples
 
   gomakegen $GOPATH/src/github.com/profile/project -o project.make
   Generate makefile for github.com/profile/project and save as project.make
+
 
 ```
 
