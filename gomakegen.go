@@ -32,13 +32,14 @@ import (
 
 const (
 	APP  = "gomakegen"
-	VER  = "0.2.0"
+	VER  = "0.3.0"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
 const (
 	ARG_GLIDE      = "g:glide"
 	ARG_METALINTER = "m:metalinter"
+	ARG_STRIP      = "s:strip"
 	ARG_BENCHMARK  = "b:benchmark"
 	ARG_VERB_TESTS = "V:verbose"
 	ARG_OUTPUT     = "o:output"
@@ -61,6 +62,7 @@ type Makefile struct {
 	VerbTests  bool
 	Glide      bool
 	Metalinter bool
+	Strip      bool
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -69,6 +71,7 @@ var argMap = arg.Map{
 	ARG_OUTPUT:     {Value: "Makefile"},
 	ARG_GLIDE:      {Type: arg.BOOL},
 	ARG_METALINTER: {Type: arg.BOOL},
+	ARG_STRIP:      {Type: arg.BOOL},
 	ARG_BENCHMARK:  {Type: arg.BOOL},
 	ARG_VERB_TESTS: {Type: arg.BOOL},
 	ARG_NO_COLOR:   {Type: arg.BOOL},
@@ -153,6 +156,7 @@ func process(dir string) {
 	makefile.Metalinter = arg.GetB(ARG_METALINTER)
 	makefile.Benchmark = arg.GetB(ARG_BENCHMARK)
 	makefile.VerbTests = arg.GetB(ARG_VERB_TESTS)
+	makefile.Strip = arg.GetB(ARG_STRIP)
 
 	makefile.Cleanup(dir)
 
@@ -463,7 +467,12 @@ func (m *Makefile) getBinTarget() string {
 
 	for _, bin := range m.Binaries {
 		result += bin + ":\n"
-		result += "\tgo build " + bin + ".go\n\n"
+
+		if m.Strip {
+			result += "\tgo build -ldflags=\"-s -w\" " + bin + ".go\n\n"
+		} else {
+			result += "\tgo build " + bin + ".go\n\n"
+		}
 	}
 
 	return result
@@ -606,9 +615,10 @@ func showUsage() {
 
 	info.AddOption(ARG_GLIDE, "Add target to fetching dependecies with glide")
 	info.AddOption(ARG_METALINTER, "Add target with metalinter check")
+	info.AddOption(ARG_STRIP, "Strip binary")
 	info.AddOption(ARG_BENCHMARK, "Add target to run benchmarks")
 	info.AddOption(ARG_VERB_TESTS, "Enable verbose output for tests")
-	info.AddOption(ARG_OUTPUT, "Output file {s-}(Makefile by default){!}")
+	info.AddOption(ARG_OUTPUT, "Output file {s-}(Makefile by default){!}", "file")
 	info.AddOption(ARG_NO_COLOR, "Disable colors in output")
 	info.AddOption(ARG_HELP, "Show this help message")
 	info.AddOption(ARG_VER, "Show version")
