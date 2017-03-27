@@ -385,18 +385,39 @@ func containsPackage(imports []string, pkgs []string) bool {
 }
 
 // containsStablePathImports return true if imports contains stable import services path
-func containsStablePathImports(imports []string) (bool, string) {
+func containsStablePathImports(imports []string) bool {
 	for _, pkg := range imports {
 		if strings.HasPrefix(pkg, "pkg.re") {
-			return true, "pkg.re"
+			return true
 		}
 
 		if strings.HasPrefix(pkg, "gopkg.in") {
-			return true, "gopkg.in"
+			return true
 		}
 	}
 
-	return false, ""
+	return false
+}
+
+// getGitConfigurationForStableImports return slice with git configuration commands for
+// stable import services
+func getGitConfigurationForStableImports(imports []string) []string {
+	var hasGopkg, hasPkgre bool
+	var result []string
+
+	for _, pkg := range imports {
+		if strings.HasPrefix(pkg, "pkg.re") && !hasPkgre {
+			result = append(result, "git config --global http.https://pkg.re.followRedirects true")
+			hasPkgre = true
+		}
+
+		if strings.HasPrefix(pkg, "gopkg.in") && !hasGopkg {
+			result = append(result, "git config --global http.https://gopkg.in.followRedirects true")
+			hasPkgre = true
+		}
+	}
+
+	return result
 }
 
 // printError prints error message to console
@@ -505,10 +526,10 @@ func (m *Makefile) getDepsTarget() string {
 
 	result += "deps:\n"
 
-	hasStableImports, stableImportService := containsStablePathImports(m.BaseImports)
-
-	if hasStableImports {
-		result += "\tgit config --global http.https://" + stableImportService + ".followRedirects true\n"
+	if containsStablePathImports(m.BaseImports) {
+		for _, gitCommand := range getGitConfigurationForStableImports(m.BaseImports) {
+			result += "\t" + gitCommand + "\n"
+		}
 	}
 
 	for _, pkg := range m.BaseImports {
@@ -532,10 +553,10 @@ func (m *Makefile) getTestTarget() string {
 	if len(m.TestImports) != 0 {
 		result += "deps-test:\n"
 
-		hasStableImports, stableImportService := containsStablePathImports(m.TestImports)
-
-		if hasStableImports {
-			result += "\tgit config --global http.https://" + stableImportService + ".followRedirects true\n"
+		if containsStablePathImports(m.TestImports) {
+			for _, gitCommand := range getGitConfigurationForStableImports(m.TestImports) {
+				result += "\t" + gitCommand + "\n"
+			}
 		}
 
 		for _, pkg := range m.TestImports {
@@ -644,27 +665,33 @@ func (m *Makefile) getGenerationComment() string {
 	result += "# gomakegen "
 
 	if arg.GetB(ARG_GLIDE) {
-		result += "--glide "
+		glideArg, _ := arg.ParseArgName(ARG_GLIDE)
+		result += fmtc.Sprintf("--%s ", glideArg)
 	}
 
 	if arg.GetB(ARG_METALINTER) {
-		result += "--metalineter "
+		metalinterArg, _ := arg.ParseArgName(ARG_METALINTER)
+		result += fmtc.Sprintf("--%s ", metalinterArg)
 	}
 
-	if arg.GetB(ARG_METALINTER) {
-		result += "--strip "
+	if arg.GetB(ARG_STRIP) {
+		stripArg, _ := arg.ParseArgName(ARG_STRIP)
+		result += fmtc.Sprintf("--%s ", stripArg)
 	}
 
 	if arg.GetB(ARG_BENCHMARK) {
-		result += "--benchmark "
+		benchArg, _ := arg.ParseArgName(ARG_BENCHMARK)
+		result += fmtc.Sprintf("--%s ", benchArg)
 	}
 
 	if arg.GetB(ARG_VERB_TESTS) {
-		result += "--verbose "
+		verbArg, _ := arg.ParseArgName(ARG_VERB_TESTS)
+		result += fmtc.Sprintf("--%s ", verbArg)
 	}
 
 	if arg.GetS(ARG_OUTPUT) != "Makefile" {
-		result += "--output " + arg.GetS(ARG_OUTPUT) + " "
+		outputArg, _ := arg.ParseArgName(ARG_OUTPUT)
+		result += fmtc.Sprintf("--%s %s ", outputArg, arg.GetS(ARG_OUTPUT))
 	}
 
 	result += ".\n"
