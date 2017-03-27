@@ -32,7 +32,7 @@ import (
 
 const (
 	APP  = "gomakegen"
-	VER  = "0.3.1"
+	VER  = "0.4.0"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
@@ -384,6 +384,21 @@ func containsPackage(imports []string, pkgs []string) bool {
 	return false
 }
 
+// containsStablePathImports return true if imports contains stable import services path
+func containsStablePathImports(imports []string) (bool, string) {
+	for _, pkg := range imports {
+		if strings.HasPrefix(pkg, "pkg.re") {
+			return true, "pkg.re"
+		}
+
+		if strings.HasPrefix(pkg, "gopkg.in") {
+			return true, "gopkg.in"
+		}
+	}
+
+	return false, ""
+}
+
 // printError prints error message to console
 func printError(f string, a ...interface{}) {
 	fmtc.Printf("{r}"+f+"{!}\n", a...)
@@ -490,6 +505,12 @@ func (m *Makefile) getDepsTarget() string {
 
 	result += "deps:\n"
 
+	hasStableImports, stableImportService := containsStablePathImports(m.BaseImports)
+
+	if hasStableImports {
+		result += "\tgit config --global http.https://" + stableImportService + ".followRedirects true\n"
+	}
+
 	for _, pkg := range m.BaseImports {
 		result += "\tgo get -v " + pkg + "\n"
 	}
@@ -510,6 +531,12 @@ func (m *Makefile) getTestTarget() string {
 
 	if len(m.TestImports) != 0 {
 		result += "deps-test:\n"
+
+		hasStableImports, stableImportService := containsStablePathImports(m.TestImports)
+
+		if hasStableImports {
+			result += "\tgit config --global http.https://" + stableImportService + ".followRedirects true\n"
+		}
 
 		for _, pkg := range m.TestImports {
 			result += "\tgo get -v " + pkg + "\n"
