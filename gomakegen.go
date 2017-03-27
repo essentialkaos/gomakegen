@@ -32,7 +32,7 @@ import (
 
 const (
 	APP  = "gomakegen"
-	VER  = "0.4.0"
+	VER  = "0.4.1"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
@@ -413,7 +413,7 @@ func getGitConfigurationForStableImports(imports []string) []string {
 
 		if strings.HasPrefix(pkg, "gopkg.in") && !hasGopkg {
 			result = append(result, "git config --global http.https://gopkg.in.followRedirects true")
-			hasPkgre = true
+			hasGopkg = true
 		}
 	}
 
