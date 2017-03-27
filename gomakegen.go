@@ -460,7 +460,7 @@ func (m *Makefile) Render() []byte {
 	result += m.getMetalinterTarget()
 	result += m.getCleanTarget()
 
-	result += SEPARATOR + "\n\n"
+	result += SEPARATOR + "\n"
 
 	return []byte(result)
 }
