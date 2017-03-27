@@ -533,7 +533,7 @@ func (m *Makefile) getDepsTarget() string {
 	}
 
 	for _, pkg := range m.BaseImports {
-		result += "\tgo get -v " + pkg + "\n"
+		result += "\tgo get -v -d " + pkg + "\n"
 	}
 
 	result += "\n"
@@ -560,7 +560,7 @@ func (m *Makefile) getTestTarget() string {
 		}
 
 		for _, pkg := range m.TestImports {
-			result += "\tgo get -v " + pkg + "\n"
+			result += "\tgo get -v -d " + pkg + "\n"
 		}
 
 		result += "\n"
