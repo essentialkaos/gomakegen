@@ -10,6 +10,8 @@
 
 ## Installation
 
+### From source
+
 Before the initial install allows git to use redirects for [pkg.re](https://github.com/essentialkaos/pkgre) service (reason why you should do this described [here](https://github.com/essentialkaos/pkgre#git-support)):
 
 ```
@@ -27,6 +29,10 @@ If you want to update `gomakegen` to latest stable release, do:
 ```
 go get -u github.com/essentialkaos/gomakegen
 ```
+
+### Prebuilt binaries
+
+You can download prebuilt binaries for Linux and OS X from [EK Apps Repository](https://apps.kaos.io/gomakegen/latest).
 
 ## Usage
 
