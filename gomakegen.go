@@ -32,7 +32,7 @@ import (
 
 const (
 	APP  = "gomakegen"
-	VER  = "0.4.1"
+	VER  = "0.4.2"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
@@ -487,6 +487,10 @@ func (m *Makefile) getPhony() string {
 
 	if m.Benchmark {
 		phony = append(phony, "benchmark")
+	}
+
+	if m.Metalinter {
+		phony = append(phony, "metalinter")
 	}
 
 	return ".PHONY = " + strings.Join(phony, " ") + "\n"
