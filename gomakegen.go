@@ -18,21 +18,21 @@ import (
 	"go/parser"
 	"go/token"
 
-	"pkg.re/essentialkaos/ek.v7/arg"
-	"pkg.re/essentialkaos/ek.v7/env"
-	"pkg.re/essentialkaos/ek.v7/fmtc"
-	"pkg.re/essentialkaos/ek.v7/fsutil"
-	"pkg.re/essentialkaos/ek.v7/path"
-	"pkg.re/essentialkaos/ek.v7/sliceutil"
-	"pkg.re/essentialkaos/ek.v7/usage"
-	"pkg.re/essentialkaos/ek.v7/usage/update"
+	"pkg.re/essentialkaos/ek.v8/arg"
+	"pkg.re/essentialkaos/ek.v8/env"
+	"pkg.re/essentialkaos/ek.v8/fmtc"
+	"pkg.re/essentialkaos/ek.v8/fsutil"
+	"pkg.re/essentialkaos/ek.v8/path"
+	"pkg.re/essentialkaos/ek.v8/sliceutil"
+	"pkg.re/essentialkaos/ek.v8/usage"
+	"pkg.re/essentialkaos/ek.v8/usage/update"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
 const (
 	APP  = "gomakegen"
-	VER  = "0.4.2"
+	VER  = "0.5.0"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
