@@ -521,7 +521,7 @@ func (m *Makefile) getPhony() string {
 	return ".PHONY = " + strings.Join(phony, " ") + "\n"
 }
 
-// getMetalinterTarget generate target for "all" command and all sub targets
+// getBinTarget generate target for "all" command and all sub targets
 // for each binary
 func (m *Makefile) getBinTarget() string {
 	if len(m.Binaries) == 0 {
@@ -545,7 +545,7 @@ func (m *Makefile) getBinTarget() string {
 	return result
 }
 
-// getMetalinterTarget generate target for "deps" command
+// getDepsTarget generate target for "deps" command
 func (m *Makefile) getDepsTarget() string {
 	if len(m.BaseImports) == 0 {
 		return ""
@@ -570,7 +570,7 @@ func (m *Makefile) getDepsTarget() string {
 	return result
 }
 
-// getMetalinterTarget generate target for "test", "deps-test"
+// getTestTarget generate target for "test", "deps-test"
 // and "benchmark" commands
 func (m *Makefile) getTestTarget() string {
 	if !m.HasTests {
@@ -620,7 +620,7 @@ func (m *Makefile) getTestTarget() string {
 	return result
 }
 
-// getMetalinterTarget generate target for "fmt" command
+// getFmtTarget generate target for "fmt" command
 func (m *Makefile) getFmtTarget() string {
 	var result string
 
@@ -631,7 +631,7 @@ func (m *Makefile) getFmtTarget() string {
 	return result
 }
 
-// getMetalinterTarget generate target for "clean" command
+// getCleanTarget generate target for "clean" command
 func (m *Makefile) getCleanTarget() string {
 	if len(m.Binaries) == 0 {
 		return ""
@@ -650,7 +650,7 @@ func (m *Makefile) getCleanTarget() string {
 	return result
 }
 
-// getMetalinterTarget generate target for "glide-up" and
+// getGlideTarget generate target for "glide-up" and
 // "glide-install" commands
 func (m *Makefile) getGlideTarget() string {
 	if !m.GlideUsed {
@@ -726,28 +726,28 @@ func (m *Makefile) getGenerationComment() string {
 	result += "# gomakegen "
 
 	if options.GetB(OPT_METALINTER) {
-		metalinterArg, _ := options.ParseOptionName(OPT_METALINTER)
-		result += fmtc.Sprintf("--%s ", metalinterArg)
+		metalinterOpt, _ := options.ParseOptionName(OPT_METALINTER)
+		result += fmtc.Sprintf("--%s ", metalinterOpt)
 	}
 
 	if options.GetB(OPT_STRIP) {
-		stripArg, _ := options.ParseOptionName(OPT_STRIP)
-		result += fmtc.Sprintf("--%s ", stripArg)
+		stripOpt, _ := options.ParseOptionName(OPT_STRIP)
+		result += fmtc.Sprintf("--%s ", stripOpt)
 	}
 
 	if options.GetB(OPT_BENCHMARK) {
-		benchArg, _ := options.ParseOptionName(OPT_BENCHMARK)
-		result += fmtc.Sprintf("--%s ", benchArg)
+		benchOpt, _ := options.ParseOptionName(OPT_BENCHMARK)
+		result += fmtc.Sprintf("--%s ", benchOpt)
 	}
 
 	if options.GetB(OPT_VERB_TESTS) {
-		verbArg, _ := options.ParseOptionName(OPT_VERB_TESTS)
-		result += fmtc.Sprintf("--%s ", verbArg)
+		verbOpt, _ := options.ParseOptionName(OPT_VERB_TESTS)
+		result += fmtc.Sprintf("--%s ", verbOpt)
 	}
 
 	if options.GetS(OPT_OUTPUT) != "Makefile" {
-		outputArg, _ := options.ParseOptionName(OPT_OUTPUT)
-		result += fmtc.Sprintf("--%s %s ", outputArg, options.GetS(OPT_OUTPUT))
+		outputOpt, _ := options.ParseOptionName(OPT_OUTPUT)
+		result += fmtc.Sprintf("--%s %s ", outputOpt, options.GetS(OPT_OUTPUT))
 	}
 
 	result += ".\n"
@@ -758,7 +758,7 @@ func (m *Makefile) getGenerationComment() string {
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
-//
+// showUsage print usage info
 func showUsage() {
 	info := usage.NewInfo("", "dir")
 
@@ -786,6 +786,7 @@ func showUsage() {
 	info.Render()
 }
 
+// showAbout print info about version
 func showAbout() {
 	about := &usage.About{
 		App:           APP,
