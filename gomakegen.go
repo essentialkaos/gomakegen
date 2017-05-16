@@ -32,12 +32,13 @@ import (
 
 const (
 	APP  = "gomakegen"
-	VER  = "0.5.0"
+	VER  = "0.6.0"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
 const (
 	OPT_GLIDE      = "g:glide"
+	OPT_DEP        = "d:dep"
 	OPT_METALINTER = "m:metalinter"
 	OPT_STRIP      = "s:strip"
 	OPT_BENCHMARK  = "b:benchmark"
@@ -60,9 +61,11 @@ type Makefile struct {
 	HasTests   bool
 	Benchmark  bool
 	VerbTests  bool
-	Glide      bool
 	Metalinter bool
 	Strip      bool
+
+	GlideUsed bool
+	DepUsed   bool
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -70,6 +73,7 @@ type Makefile struct {
 var optMap = options.Map{
 	OPT_OUTPUT:     {Value: "Makefile"},
 	OPT_GLIDE:      {Type: options.BOOL},
+	OPT_DEP:        {Type: options.BOOL},
 	OPT_METALINTER: {Type: options.BOOL},
 	OPT_STRIP:      {Type: options.BOOL},
 	OPT_BENCHMARK:  {Type: options.BOOL},
@@ -150,15 +154,7 @@ func process(dir string) {
 		},
 	)
 
-	makefile := collectImports(sources, dir)
-
-	makefile.Glide = options.GetB(OPT_GLIDE)
-	makefile.Metalinter = options.GetB(OPT_METALINTER)
-	makefile.Benchmark = options.GetB(OPT_BENCHMARK)
-	makefile.VerbTests = options.GetB(OPT_VERB_TESTS)
-	makefile.Strip = options.GetB(OPT_STRIP)
-
-	makefile.Cleanup(dir)
+	makefile := generateMakefile(sources, dir)
 
 	exportMakefile(makefile)
 }
@@ -173,6 +169,30 @@ func exportMakefile(makefile *Makefile) {
 	}
 
 	fmtc.Printf("{g}Makefile successfully created as {g*}%s{!}\n", options.GetS(OPT_OUTPUT))
+}
+
+// generateMakefile collect imports, process options and generate makefile struct
+func generateMakefile(sources []string, dir string) *Makefile {
+	makefile := collectImports(sources, dir)
+
+	makefile.Metalinter = options.GetB(OPT_METALINTER)
+	makefile.Benchmark = options.GetB(OPT_BENCHMARK)
+	makefile.VerbTests = options.GetB(OPT_VERB_TESTS)
+	makefile.Strip = options.GetB(OPT_STRIP)
+	makefile.GlideUsed = fsutil.IsExist(dir + "/glide.yaml")
+	makefile.DepUsed = fsutil.IsExist(dir + "/Gopkg.toml")
+
+	if options.GetB(OPT_GLIDE) {
+		makefile.GlideUsed = true
+	}
+
+	if options.GetB(OPT_DEP) {
+		makefile.DepUsed = true
+	}
+
+	makefile.Cleanup(dir)
+
+	return makefile
 }
 
 // collectImports collect import from source files and return imports for
@@ -422,12 +442,12 @@ func getGitConfigurationForStableImports(imports []string) []string {
 
 // printError prints error message to console
 func printError(f string, a ...interface{}) {
-	fmtc.Printf("{r}"+f+"{!}\n", a...)
+	fmtc.Fprintf(os.Stderr, "{r}"+f+"{!}\n", a...)
 }
 
-// printWarn prints warning message to console
+// printError prints warning message to console
 func printWarn(f string, a ...interface{}) {
-	fmtc.Printf("{y}"+f+"{!}\n", a...)
+	fmtc.Fprintf(os.Stderr, "{y}"+f+"{!}\n", a...)
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -456,6 +476,7 @@ func (m *Makefile) Render() []byte {
 	result += m.getDepsTarget()
 	result += m.getTestTarget()
 	result += m.getGlideTarget()
+	result += m.getDepTarget()
 	result += m.getFmtTarget()
 	result += m.getMetalinterTarget()
 	result += m.getCleanTarget()
@@ -481,8 +502,12 @@ func (m *Makefile) getPhony() string {
 		phony = append(phony, "deps-test", "test")
 	}
 
-	if m.Glide {
-		phony = append(phony, "glide-up", "glide-install")
+	if m.GlideUsed {
+		phony = append(phony, "glide-init", "glide-install", "glide-update")
+	}
+
+	if m.DepUsed {
+		phony = append(phony, "dep-init", "dep-update")
 	}
 
 	if m.Benchmark {
@@ -628,18 +653,50 @@ func (m *Makefile) getCleanTarget() string {
 // getMetalinterTarget generate target for "glide-up" and
 // "glide-install" commands
 func (m *Makefile) getGlideTarget() string {
-	if !m.Glide {
+	if !m.GlideUsed {
 		return ""
 	}
 
 	var result string
 
-	result += "glide-up:\n"
-	result += "\tglide up\n"
+	result += "glide-init:\n"
+	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
+	result += "\tglide init\n"
 	result += "\n"
 
 	result += "glide-install:\n"
+	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
+	result += "\ttest -s glide.yaml || glide init\n"
 	result += "\tglide install\n"
+	result += "\n"
+
+	result += "glide-update:\n"
+	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
+	result += "\ttest -s glide.yaml || glide init\n"
+	result += "\tglide update\n"
+	result += "\n"
+
+	return result
+}
+
+// getDepTarget generate target for "dep-init" and
+// "dep-update" commands
+func (m *Makefile) getDepTarget() string {
+	if !m.DepUsed {
+		return ""
+	}
+
+	var result string
+
+	result += "dep-init:\n"
+	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
+	result += "\tdep init\n"
+	result += "\n"
+
+	result += "dep-update:\n"
+	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
+	result += "\ttest -s Gopkg.toml || dep init\n"
+	result += "\tdep ensure -update\n"
 	result += "\n"
 
 	return result
@@ -667,11 +724,6 @@ func (m *Makefile) getGenerationComment() string {
 
 	result = "# This Makefile generated by GoMakeGen " + VER + " using next command:\n"
 	result += "# gomakegen "
-
-	if options.GetB(OPT_GLIDE) {
-		glideArg, _ := options.ParseOptionName(OPT_GLIDE)
-		result += fmtc.Sprintf("--%s ", glideArg)
-	}
 
 	if options.GetB(OPT_METALINTER) {
 		metalinterArg, _ := options.ParseOptionName(OPT_METALINTER)
@@ -711,6 +763,7 @@ func showUsage() {
 	info := usage.NewInfo("", "dir")
 
 	info.AddOption(OPT_GLIDE, "Add target to fetching dependecies with glide")
+	info.AddOption(OPT_DEP, "Add target to fetching dependecies with dep")
 	info.AddOption(OPT_METALINTER, "Add target with metalinter check")
 	info.AddOption(OPT_STRIP, "Strip binary")
 	info.AddOption(OPT_BENCHMARK, "Add target to run benchmarks")
