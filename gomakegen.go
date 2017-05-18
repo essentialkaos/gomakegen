@@ -18,34 +18,35 @@ import (
 	"go/parser"
 	"go/token"
 
-	"pkg.re/essentialkaos/ek.v8/arg"
-	"pkg.re/essentialkaos/ek.v8/env"
-	"pkg.re/essentialkaos/ek.v8/fmtc"
-	"pkg.re/essentialkaos/ek.v8/fsutil"
-	"pkg.re/essentialkaos/ek.v8/path"
-	"pkg.re/essentialkaos/ek.v8/sliceutil"
-	"pkg.re/essentialkaos/ek.v8/usage"
-	"pkg.re/essentialkaos/ek.v8/usage/update"
+	"pkg.re/essentialkaos/ek.v9/env"
+	"pkg.re/essentialkaos/ek.v9/fmtc"
+	"pkg.re/essentialkaos/ek.v9/fsutil"
+	"pkg.re/essentialkaos/ek.v9/options"
+	"pkg.re/essentialkaos/ek.v9/path"
+	"pkg.re/essentialkaos/ek.v9/sliceutil"
+	"pkg.re/essentialkaos/ek.v9/usage"
+	"pkg.re/essentialkaos/ek.v9/usage/update"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
 const (
 	APP  = "gomakegen"
-	VER  = "0.5.0"
+	VER  = "0.6.0"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
 const (
-	ARG_GLIDE      = "g:glide"
-	ARG_METALINTER = "m:metalinter"
-	ARG_STRIP      = "s:strip"
-	ARG_BENCHMARK  = "b:benchmark"
-	ARG_VERB_TESTS = "V:verbose"
-	ARG_OUTPUT     = "o:output"
-	ARG_NO_COLOR   = "nc:no-color"
-	ARG_HELP       = "h:help"
-	ARG_VER        = "v:version"
+	OPT_GLIDE      = "g:glide"
+	OPT_DEP        = "d:dep"
+	OPT_METALINTER = "m:metalinter"
+	OPT_STRIP      = "s:strip"
+	OPT_BENCHMARK  = "b:benchmark"
+	OPT_VERB_TESTS = "V:verbose"
+	OPT_OUTPUT     = "o:output"
+	OPT_NO_COLOR   = "nc:no-color"
+	OPT_HELP       = "h:help"
+	OPT_VER        = "v:version"
 )
 
 const SEPARATOR = "########################################################################################"
@@ -60,23 +61,26 @@ type Makefile struct {
 	HasTests   bool
 	Benchmark  bool
 	VerbTests  bool
-	Glide      bool
 	Metalinter bool
 	Strip      bool
+
+	GlideUsed bool
+	DepUsed   bool
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
-var argMap = arg.Map{
-	ARG_OUTPUT:     {Value: "Makefile"},
-	ARG_GLIDE:      {Type: arg.BOOL},
-	ARG_METALINTER: {Type: arg.BOOL},
-	ARG_STRIP:      {Type: arg.BOOL},
-	ARG_BENCHMARK:  {Type: arg.BOOL},
-	ARG_VERB_TESTS: {Type: arg.BOOL},
-	ARG_NO_COLOR:   {Type: arg.BOOL},
-	ARG_HELP:       {Type: arg.BOOL, Alias: "u:usage"},
-	ARG_VER:        {Type: arg.BOOL, Alias: "ver"},
+var optMap = options.Map{
+	OPT_OUTPUT:     {Value: "Makefile"},
+	OPT_GLIDE:      {Type: options.BOOL},
+	OPT_DEP:        {Type: options.BOOL},
+	OPT_METALINTER: {Type: options.BOOL},
+	OPT_STRIP:      {Type: options.BOOL},
+	OPT_BENCHMARK:  {Type: options.BOOL},
+	OPT_VERB_TESTS: {Type: options.BOOL},
+	OPT_NO_COLOR:   {Type: options.BOOL},
+	OPT_HELP:       {Type: options.BOOL, Alias: "u:usage"},
+	OPT_VER:        {Type: options.BOOL, Alias: "ver"},
 }
 
 var checkPackageImports = []string{
@@ -90,10 +94,10 @@ var checkPackageImports = []string{
 func main() {
 	runtime.GOMAXPROCS(1)
 
-	args, errs := arg.Parse(argMap)
+	args, errs := options.Parse(optMap)
 
 	if len(errs) != 0 {
-		printError("Arguments parsing errors:")
+		printError("Options parsing errors:")
 
 		for _, err := range errs {
 			printError("  %v", err)
@@ -102,16 +106,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	if arg.GetB(ARG_NO_COLOR) {
+	if options.GetB(OPT_NO_COLOR) {
 		fmtc.DisableColors = true
 	}
 
-	if arg.GetB(ARG_VER) {
+	if options.GetB(OPT_VER) {
 		showAbout()
 		return
 	}
 
-	if arg.GetB(ARG_HELP) || len(args) == 0 {
+	if options.GetB(OPT_HELP) || len(args) == 0 {
 		showUsage()
 		return
 	}
@@ -150,29 +154,45 @@ func process(dir string) {
 		},
 	)
 
-	makefile := collectImports(sources, dir)
-
-	makefile.Glide = arg.GetB(ARG_GLIDE)
-	makefile.Metalinter = arg.GetB(ARG_METALINTER)
-	makefile.Benchmark = arg.GetB(ARG_BENCHMARK)
-	makefile.VerbTests = arg.GetB(ARG_VERB_TESTS)
-	makefile.Strip = arg.GetB(ARG_STRIP)
-
-	makefile.Cleanup(dir)
+	makefile := generateMakefile(sources, dir)
 
 	exportMakefile(makefile)
 }
 
 // exportMakefile render makefile and write data to file
 func exportMakefile(makefile *Makefile) {
-	err := ioutil.WriteFile(arg.GetS(ARG_OUTPUT), makefile.Render(), 0644)
+	err := ioutil.WriteFile(options.GetS(OPT_OUTPUT), makefile.Render(), 0644)
 
 	if err != nil {
 		printError(err.Error())
 		os.Exit(1)
 	}
 
-	fmtc.Printf("{g}Makefile successfully created as {g*}%s{!}\n", arg.GetS(ARG_OUTPUT))
+	fmtc.Printf("{g}Makefile successfully created as {g*}%s{!}\n", options.GetS(OPT_OUTPUT))
+}
+
+// generateMakefile collect imports, process options and generate makefile struct
+func generateMakefile(sources []string, dir string) *Makefile {
+	makefile := collectImports(sources, dir)
+
+	makefile.Metalinter = options.GetB(OPT_METALINTER)
+	makefile.Benchmark = options.GetB(OPT_BENCHMARK)
+	makefile.VerbTests = options.GetB(OPT_VERB_TESTS)
+	makefile.Strip = options.GetB(OPT_STRIP)
+	makefile.GlideUsed = fsutil.IsExist(dir + "/glide.yaml")
+	makefile.DepUsed = fsutil.IsExist(dir + "/Gopkg.toml")
+
+	if options.GetB(OPT_GLIDE) {
+		makefile.GlideUsed = true
+	}
+
+	if options.GetB(OPT_DEP) {
+		makefile.DepUsed = true
+	}
+
+	makefile.Cleanup(dir)
+
+	return makefile
 }
 
 // collectImports collect import from source files and return imports for
@@ -422,12 +442,12 @@ func getGitConfigurationForStableImports(imports []string) []string {
 
 // printError prints error message to console
 func printError(f string, a ...interface{}) {
-	fmtc.Printf("{r}"+f+"{!}\n", a...)
+	fmtc.Fprintf(os.Stderr, "{r}"+f+"{!}\n", a...)
 }
 
-// printWarn prints warning message to console
+// printError prints warning message to console
 func printWarn(f string, a ...interface{}) {
-	fmtc.Printf("{y}"+f+"{!}\n", a...)
+	fmtc.Fprintf(os.Stderr, "{y}"+f+"{!}\n", a...)
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -456,6 +476,7 @@ func (m *Makefile) Render() []byte {
 	result += m.getDepsTarget()
 	result += m.getTestTarget()
 	result += m.getGlideTarget()
+	result += m.getDepTarget()
 	result += m.getFmtTarget()
 	result += m.getMetalinterTarget()
 	result += m.getCleanTarget()
@@ -481,8 +502,12 @@ func (m *Makefile) getPhony() string {
 		phony = append(phony, "deps-test", "test")
 	}
 
-	if m.Glide {
-		phony = append(phony, "glide-up", "glide-install")
+	if m.GlideUsed {
+		phony = append(phony, "glide-init", "glide-install", "glide-update")
+	}
+
+	if m.DepUsed {
+		phony = append(phony, "dep-init", "dep-update")
 	}
 
 	if m.Benchmark {
@@ -496,7 +521,7 @@ func (m *Makefile) getPhony() string {
 	return ".PHONY = " + strings.Join(phony, " ") + "\n"
 }
 
-// getMetalinterTarget generate target for "all" command and all sub targets
+// getBinTarget generate target for "all" command and all sub targets
 // for each binary
 func (m *Makefile) getBinTarget() string {
 	if len(m.Binaries) == 0 {
@@ -520,7 +545,7 @@ func (m *Makefile) getBinTarget() string {
 	return result
 }
 
-// getMetalinterTarget generate target for "deps" command
+// getDepsTarget generate target for "deps" command
 func (m *Makefile) getDepsTarget() string {
 	if len(m.BaseImports) == 0 {
 		return ""
@@ -545,7 +570,7 @@ func (m *Makefile) getDepsTarget() string {
 	return result
 }
 
-// getMetalinterTarget generate target for "test", "deps-test"
+// getTestTarget generate target for "test", "deps-test"
 // and "benchmark" commands
 func (m *Makefile) getTestTarget() string {
 	if !m.HasTests {
@@ -595,7 +620,7 @@ func (m *Makefile) getTestTarget() string {
 	return result
 }
 
-// getMetalinterTarget generate target for "fmt" command
+// getFmtTarget generate target for "fmt" command
 func (m *Makefile) getFmtTarget() string {
 	var result string
 
@@ -606,7 +631,7 @@ func (m *Makefile) getFmtTarget() string {
 	return result
 }
 
-// getMetalinterTarget generate target for "clean" command
+// getCleanTarget generate target for "clean" command
 func (m *Makefile) getCleanTarget() string {
 	if len(m.Binaries) == 0 {
 		return ""
@@ -625,21 +650,53 @@ func (m *Makefile) getCleanTarget() string {
 	return result
 }
 
-// getMetalinterTarget generate target for "glide-up" and
+// getGlideTarget generate target for "glide-up" and
 // "glide-install" commands
 func (m *Makefile) getGlideTarget() string {
-	if !m.Glide {
+	if !m.GlideUsed {
 		return ""
 	}
 
 	var result string
 
-	result += "glide-up:\n"
-	result += "\tglide up\n"
+	result += "glide-init:\n"
+	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
+	result += "\tglide init\n"
 	result += "\n"
 
 	result += "glide-install:\n"
+	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
+	result += "\ttest -s glide.yaml || glide init\n"
 	result += "\tglide install\n"
+	result += "\n"
+
+	result += "glide-update:\n"
+	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
+	result += "\ttest -s glide.yaml || glide init\n"
+	result += "\tglide update\n"
+	result += "\n"
+
+	return result
+}
+
+// getDepTarget generate target for "dep-init" and
+// "dep-update" commands
+func (m *Makefile) getDepTarget() string {
+	if !m.DepUsed {
+		return ""
+	}
+
+	var result string
+
+	result += "dep-init:\n"
+	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
+	result += "\tdep init\n"
+	result += "\n"
+
+	result += "dep-update:\n"
+	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
+	result += "\ttest -s Gopkg.toml || dep init\n"
+	result += "\tdep ensure -update\n"
 	result += "\n"
 
 	return result
@@ -668,34 +725,29 @@ func (m *Makefile) getGenerationComment() string {
 	result = "# This Makefile generated by GoMakeGen " + VER + " using next command:\n"
 	result += "# gomakegen "
 
-	if arg.GetB(ARG_GLIDE) {
-		glideArg, _ := arg.ParseArgName(ARG_GLIDE)
-		result += fmtc.Sprintf("--%s ", glideArg)
+	if options.GetB(OPT_METALINTER) {
+		metalinterOpt, _ := options.ParseOptionName(OPT_METALINTER)
+		result += fmtc.Sprintf("--%s ", metalinterOpt)
 	}
 
-	if arg.GetB(ARG_METALINTER) {
-		metalinterArg, _ := arg.ParseArgName(ARG_METALINTER)
-		result += fmtc.Sprintf("--%s ", metalinterArg)
+	if options.GetB(OPT_STRIP) {
+		stripOpt, _ := options.ParseOptionName(OPT_STRIP)
+		result += fmtc.Sprintf("--%s ", stripOpt)
 	}
 
-	if arg.GetB(ARG_STRIP) {
-		stripArg, _ := arg.ParseArgName(ARG_STRIP)
-		result += fmtc.Sprintf("--%s ", stripArg)
+	if options.GetB(OPT_BENCHMARK) {
+		benchOpt, _ := options.ParseOptionName(OPT_BENCHMARK)
+		result += fmtc.Sprintf("--%s ", benchOpt)
 	}
 
-	if arg.GetB(ARG_BENCHMARK) {
-		benchArg, _ := arg.ParseArgName(ARG_BENCHMARK)
-		result += fmtc.Sprintf("--%s ", benchArg)
+	if options.GetB(OPT_VERB_TESTS) {
+		verbOpt, _ := options.ParseOptionName(OPT_VERB_TESTS)
+		result += fmtc.Sprintf("--%s ", verbOpt)
 	}
 
-	if arg.GetB(ARG_VERB_TESTS) {
-		verbArg, _ := arg.ParseArgName(ARG_VERB_TESTS)
-		result += fmtc.Sprintf("--%s ", verbArg)
-	}
-
-	if arg.GetS(ARG_OUTPUT) != "Makefile" {
-		outputArg, _ := arg.ParseArgName(ARG_OUTPUT)
-		result += fmtc.Sprintf("--%s %s ", outputArg, arg.GetS(ARG_OUTPUT))
+	if options.GetS(OPT_OUTPUT) != "Makefile" {
+		outputOpt, _ := options.ParseOptionName(OPT_OUTPUT)
+		result += fmtc.Sprintf("--%s %s ", outputOpt, options.GetS(OPT_OUTPUT))
 	}
 
 	result += ".\n"
@@ -706,19 +758,20 @@ func (m *Makefile) getGenerationComment() string {
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
-//
+// showUsage print usage info
 func showUsage() {
 	info := usage.NewInfo("", "dir")
 
-	info.AddOption(ARG_GLIDE, "Add target to fetching dependecies with glide")
-	info.AddOption(ARG_METALINTER, "Add target with metalinter check")
-	info.AddOption(ARG_STRIP, "Strip binary")
-	info.AddOption(ARG_BENCHMARK, "Add target to run benchmarks")
-	info.AddOption(ARG_VERB_TESTS, "Enable verbose output for tests")
-	info.AddOption(ARG_OUTPUT, "Output file {s-}(Makefile by default){!}", "file")
-	info.AddOption(ARG_NO_COLOR, "Disable colors in output")
-	info.AddOption(ARG_HELP, "Show this help message")
-	info.AddOption(ARG_VER, "Show version")
+	info.AddOption(OPT_GLIDE, "Add target to fetching dependecies with glide")
+	info.AddOption(OPT_DEP, "Add target to fetching dependecies with dep")
+	info.AddOption(OPT_METALINTER, "Add target with metalinter check")
+	info.AddOption(OPT_STRIP, "Strip binary")
+	info.AddOption(OPT_BENCHMARK, "Add target to run benchmarks")
+	info.AddOption(OPT_VERB_TESTS, "Enable verbose output for tests")
+	info.AddOption(OPT_OUTPUT, "Output file {s-}(Makefile by default){!}", "file")
+	info.AddOption(OPT_NO_COLOR, "Disable colors in output")
+	info.AddOption(OPT_HELP, "Show this help message")
+	info.AddOption(OPT_VER, "Show version")
 
 	info.AddExample(
 		"$GOPATH/src/github.com/profile/project",
@@ -733,6 +786,7 @@ func showUsage() {
 	info.Render()
 }
 
+// showAbout print info about version
 func showAbout() {
 	about := &usage.About{
 		App:           APP,
