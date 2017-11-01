@@ -1,4 +1,4 @@
-# GoMakeGen [![Build Status](https://travis-ci.org/essentialkaos/gomakegen.svg?branch=master)](https://travis-ci.org/essentialkaos/gomakegen) [![Go Report Card](https://goreportcard.com/badge/github.com/essentialkaos/gomakegen)](https://goreportcard.com/report/github.com/essentialkaos/gomakegen) [![License](https://gh.kaos.io/ekol.svg)](https://essentialkaos.com/ekol)
+# GoMakeGen [![Build Status](https://travis-ci.org/essentialkaos/gomakegen.svg?branch=master)](https://travis-ci.org/essentialkaos/gomakegen) [![Go Report Card](https://goreportcard.com/badge/github.com/essentialkaos/gomakegen)](https://goreportcard.com/report/github.com/essentialkaos/gomakegen) [![codebeat badge](https://codebeat.co/badges/6f7a19c8-d78d-4062-a8cf-fdac4b8d1f85)](https://codebeat.co/projects/github-com-essentialkaos-gomakegen-master) [![License](https://gh.kaos.io/ekol.svg)](https://essentialkaos.com/ekol)
 
 `gomakegen` is simple utility for generating makefiles for Golang applications.
 
