@@ -19,6 +19,8 @@ main() {
     exit 1
   fi
 
+  echo "Base Makefile is equals generated Makefile"
+
   exit 0
 }
 
