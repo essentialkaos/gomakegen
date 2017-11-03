@@ -476,11 +476,30 @@ func (m *Makefile) Cleanup(dir string) {
 func (m *Makefile) Render() []byte {
 	var result string
 
+	result += m.getHeader()
+	result += m.getTargets()
+
+	return []byte(result)
+}
+
+// ////////////////////////////////////////////////////////////////////////////////// //
+
+// getHeader return header data
+func (m *Makefile) getHeader() string {
+	var result string
+
 	result += getSeparator() + "\n\n"
 	result += m.getGenerationComment()
 	result += getSeparator() + "\n\n"
 	result += m.getPhony() + "\n"
 	result += getSeparator() + "\n\n"
+
+	return result
+}
+
+// getTargets return targets data
+func (m *Makefile) getTargets() string {
+	var result string
 
 	result += m.getBinTarget()
 	result += m.getDepsTarget()
@@ -492,8 +511,6 @@ func (m *Makefile) Render() []byte {
 	result += m.getCleanTarget()
 
 	result += getSeparator() + "\n"
-
-	return []byte(result)
 }
 
 // getPhony return PHONY part of makefile
