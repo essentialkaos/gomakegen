@@ -32,7 +32,7 @@ import (
 
 const (
 	APP  = "gomakegen"
-	VER  = "0.6.0"
+	VER  = "0.6.1"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
@@ -49,7 +49,7 @@ const (
 	OPT_VER        = "v:version"
 )
 
-const SEPARATOR = "########################################################################################"
+const SEPARATOR_SIZE = 80
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
@@ -363,7 +363,17 @@ func getPackageRoot(pkg, gopath string) string {
 
 // isPackageRoot return true if given path is root for package
 func isPackageRoot(path string) bool {
-	return fsutil.IsExist(path + "/.git")
+	if !fsutil.IsExist(path + "/.git") {
+		return false
+	}
+
+	files := fsutil.List(path, true, fsutil.ListingFilter{MatchPatterns: []string{"*.go"}})
+
+	if len(files) == 0 {
+		return false
+	}
+
+	return true
 }
 
 // isExternalPackage return true if given package is external
@@ -466,11 +476,30 @@ func (m *Makefile) Cleanup(dir string) {
 func (m *Makefile) Render() []byte {
 	var result string
 
-	result += SEPARATOR + "\n\n"
+	result += m.getHeader()
+	result += m.getTargets()
+
+	return []byte(result)
+}
+
+// ////////////////////////////////////////////////////////////////////////////////// //
+
+// getHeader return header data
+func (m *Makefile) getHeader() string {
+	var result string
+
+	result += getSeparator() + "\n\n"
 	result += m.getGenerationComment()
-	result += SEPARATOR + "\n\n"
+	result += getSeparator() + "\n\n"
 	result += m.getPhony() + "\n"
-	result += SEPARATOR + "\n\n"
+	result += getSeparator() + "\n\n"
+
+	return result
+}
+
+// getTargets return targets data
+func (m *Makefile) getTargets() string {
+	var result string
 
 	result += m.getBinTarget()
 	result += m.getDepsTarget()
@@ -481,9 +510,9 @@ func (m *Makefile) Render() []byte {
 	result += m.getMetalinterTarget()
 	result += m.getCleanTarget()
 
-	result += SEPARATOR + "\n"
+	result += getSeparator() + "\n"
 
-	return []byte(result)
+	return result
 }
 
 // getPhony return PHONY part of makefile
@@ -754,6 +783,11 @@ func (m *Makefile) getGenerationComment() string {
 	result += "\n"
 
 	return result
+}
+
+// getSeparator return separator
+func getSeparator() string {
+	return strings.Repeat("#", SEPARATOR_SIZE)
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
