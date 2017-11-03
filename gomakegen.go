@@ -511,6 +511,8 @@ func (m *Makefile) getTargets() string {
 	result += m.getCleanTarget()
 
 	result += getSeparator() + "\n"
+
+	return result
 }
 
 // getPhony return PHONY part of makefile
