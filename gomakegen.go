@@ -32,7 +32,7 @@ import (
 
 const (
 	APP  = "gomakegen"
-	VER  = "0.6.1"
+	VER  = "0.7.0"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
@@ -491,6 +491,7 @@ func (m *Makefile) getHeader() string {
 	result += getSeparator() + "\n\n"
 	result += m.getGenerationComment()
 	result += getSeparator() + "\n\n"
+	result += m.getDefaultGoal() + "\n"
 	result += m.getPhony() + "\n"
 	result += getSeparator() + "\n\n"
 
@@ -509,6 +510,7 @@ func (m *Makefile) getTargets() string {
 	result += m.getFmtTarget()
 	result += m.getMetalinterTarget()
 	result += m.getCleanTarget()
+	result += m.getHelpTarget()
 
 	result += getSeparator() + "\n"
 
@@ -532,7 +534,7 @@ func (m *Makefile) getPhony() string {
 	}
 
 	if m.GlideUsed {
-		phony = append(phony, "glide-init", "glide-install", "glide-update")
+		phony = append(phony, "glide-create", "glide-install", "glide-update")
 	}
 
 	if m.DepUsed {
@@ -547,7 +549,14 @@ func (m *Makefile) getPhony() string {
 		phony = append(phony, "metalinter")
 	}
 
+	phony = append(phony, "help")
+
 	return ".PHONY = " + strings.Join(phony, " ") + "\n"
+}
+
+// getDefaultGoal return DEFAULT_GOAL part of makefile
+func (m *Makefile) getDefaultGoal() string {
+	return ".DEFAULT_GOAL := help"
 }
 
 // getBinTarget generate target for "all" command and all sub targets
@@ -559,10 +568,10 @@ func (m *Makefile) getBinTarget() string {
 
 	var result string
 
-	result += "all: " + strings.Join(m.Binaries, " ") + "\n\n"
+	result += "all: " + strings.Join(m.Binaries, " ") + " ## Build all binaries\n\n"
 
 	for _, bin := range m.Binaries {
-		result += bin + ":\n"
+		result += bin + ": ## " + fmtc.Sprintf("Build %s binary", bin) + "\n"
 
 		if m.Strip {
 			result += "\tgo build -ldflags=\"-s -w\" " + bin + ".go\n\n"
@@ -582,7 +591,7 @@ func (m *Makefile) getDepsTarget() string {
 
 	var result string
 
-	result += "deps:\n"
+	result += "deps: ## Download dependencies\n"
 
 	if containsStablePathImports(m.BaseImports) {
 		for _, gitCommand := range getGitConfigurationForStableImports(m.BaseImports) {
@@ -609,7 +618,7 @@ func (m *Makefile) getTestTarget() string {
 	var result string
 
 	if len(m.TestImports) != 0 {
-		result += "deps-test:\n"
+		result += "deps-test: ## Download dependencies for tests\n"
 
 		if containsStablePathImports(m.TestImports) {
 			for _, gitCommand := range getGitConfigurationForStableImports(m.TestImports) {
@@ -624,7 +633,7 @@ func (m *Makefile) getTestTarget() string {
 		result += "\n"
 	}
 
-	result += "test:\n"
+	result += "test: ## Run tests\n"
 
 	if m.VerbTests {
 		result += "\tgo test -v -covermode=count .\n"
@@ -653,7 +662,7 @@ func (m *Makefile) getTestTarget() string {
 func (m *Makefile) getFmtTarget() string {
 	var result string
 
-	result += "fmt:\n"
+	result += "fmt: ## Format source code with gofmt\n"
 	result += "\tfind . -name \"*.go\" -exec gofmt -s -w {} \\;\n"
 	result += "\n"
 
@@ -668,7 +677,7 @@ func (m *Makefile) getCleanTarget() string {
 
 	var result string
 
-	result += "clean:\n"
+	result += "clean: ## Clean all\n"
 
 	for _, bin := range m.Binaries {
 		result += "\trm -f " + bin + "\n"
@@ -688,18 +697,18 @@ func (m *Makefile) getGlideTarget() string {
 
 	var result string
 
-	result += "glide-init:\n"
+	result += "glide-create: ## Initialize glide workspace\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\tglide init\n"
 	result += "\n"
 
-	result += "glide-install:\n"
+	result += "glide-install: ## Install packages and dependencies through glide\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\ttest -s glide.yaml || glide init\n"
 	result += "\tglide install\n"
 	result += "\n"
 
-	result += "glide-update:\n"
+	result += "glide-update: ## Update packages and dependencies through glide\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\ttest -s glide.yaml || glide init\n"
 	result += "\tglide update\n"
@@ -717,12 +726,12 @@ func (m *Makefile) getDepTarget() string {
 
 	var result string
 
-	result += "dep-init:\n"
+	result += "dep-init: ## Initialize dep workspace\n"
 	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
 	result += "\tdep init\n"
 	result += "\n"
 
-	result += "dep-update:\n"
+	result += "dep-update: ## Update packages and dependencies through dep\n"
 	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
 	result += "\ttest -s Gopkg.toml || dep init\n"
 	result += "\tdep ensure -update\n"
@@ -739,9 +748,23 @@ func (m *Makefile) getMetalinterTarget() string {
 
 	var result string
 
-	result += "metalinter:\n"
+	result += "metalinter: ## Run metalinter\n"
 	result += "\ttest -s $(GOPATH)/bin/gometalinter || (go get -u github.com/alecthomas/gometalinter ; $(GOPATH)/bin/gometalinter --install)\n"
 	result += "\t$(GOPATH)/bin/gometalinter --deadline 30s\n"
+	result += "\n"
+
+	return result
+}
+
+// getHelpTarget generate target for "help" command
+func (m *Makefile) getHelpTarget() string {
+	var result string
+
+	result += "help: ## Show this info\n"
+	result += "\t@echo -e ''\n"
+	result += "\t@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \\\n"
+	result += "\t\t| awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \033[33m%-12s\033[0m %s\\n\", $$1, $$2}'\n"
+	result += "\t@echo -e ''\n"
 	result += "\n"
 
 	return result
