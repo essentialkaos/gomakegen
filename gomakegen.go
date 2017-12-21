@@ -30,12 +30,14 @@ import (
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
+// App info
 const (
 	APP  = "gomakegen"
 	VER  = "0.7.0"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
+// Constants with options names
 const (
 	OPT_GLIDE      = "g:glide"
 	OPT_DEP        = "d:dep"
@@ -49,10 +51,12 @@ const (
 	OPT_VER        = "v:version"
 )
 
+// SEPARATOR_SIZE is default separator size
 const SEPARATOR_SIZE = 80
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
+// Makefile contains full info for makefile generation
 type Makefile struct {
 	BaseImports []string
 	TestImports []string
@@ -70,6 +74,7 @@ type Makefile struct {
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
+// Options map
 var optMap = options.Map{
 	OPT_OUTPUT:     {Value: "Makefile"},
 	OPT_GLIDE:      {Type: options.BOOL},
@@ -83,6 +88,7 @@ var optMap = options.Map{
 	OPT_VER:        {Type: options.BOOL, Alias: "ver"},
 }
 
+// Paths for check package
 var checkPackageImports = []string{
 	"github.com/go-check/check",
 	"gopkg.in/check.v1",
@@ -369,11 +375,7 @@ func isPackageRoot(path string) bool {
 
 	files := fsutil.List(path, true, fsutil.ListingFilter{MatchPatterns: []string{"*.go"}})
 
-	if len(files) == 0 {
-		return false
-	}
-
-	return true
+	return len(files) != 0
 }
 
 // isExternalPackage return true if given package is external
@@ -644,7 +646,7 @@ func (m *Makefile) getTestTarget() string {
 	result += "\n"
 
 	if m.Benchmark {
-		result += "benchmark:\n"
+		result += "benchmark: ## Run benchmarks\n"
 
 		if containsPackage(m.TestImports, checkPackageImports) {
 			result += "\tgo test -check.v -check.b -check.bmem\n"
@@ -748,7 +750,7 @@ func (m *Makefile) getMetalinterTarget() string {
 
 	var result string
 
-	result += "metalinter: ## Run metalinter\n"
+	result += "metalinter: ## Install and run gometalinter\n"
 	result += "\ttest -s $(GOPATH)/bin/gometalinter || (go get -u github.com/alecthomas/gometalinter ; $(GOPATH)/bin/gometalinter --install)\n"
 	result += "\t$(GOPATH)/bin/gometalinter --deadline 30s\n"
 	result += "\n"
@@ -829,6 +831,10 @@ func showUsage() {
 	info.AddOption(OPT_NO_COLOR, "Disable colors in output")
 	info.AddOption(OPT_HELP, "Show this help message")
 	info.AddOption(OPT_VER, "Show version")
+
+	info.AddExample(
+		"", "Generate makefile for project in current directory and save as Makefile",
+	)
 
 	info.AddExample(
 		"$GOPATH/src/github.com/profile/project",
