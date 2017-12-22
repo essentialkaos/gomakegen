@@ -22,7 +22,7 @@ deps: ## Download dependencies
 fmt: ## Format source code with gofmt
 	find . -name "*.go" -exec gofmt -s -w {} \;
 
-metalinter: ## Run metalinter
+metalinter: ## Install and run gometalinter
 	test -s $(GOPATH)/bin/gometalinter || (go get -u github.com/alecthomas/gometalinter ; $(GOPATH)/bin/gometalinter --install)
 	$(GOPATH)/bin/gometalinter --deadline 30s
 
@@ -30,9 +30,9 @@ clean: ## Clean all
 	rm -f gomakegen
 
 help: ## Show this info
-	@echo -e ''
+	@echo -e '\nSupported targets:\n'
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
-		| awk 'BEGIN {FS = ":.*?## "}; {printf "  [33m%-12s[0m %s\n", $$1, $$2}'
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[33m%-12s\033[0m %s\n", $$1, $$2}'
 	@echo -e ''
 
 ################################################################################
