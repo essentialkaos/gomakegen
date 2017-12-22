@@ -947,7 +947,7 @@ func showUsage() {
 	info.AddOption(OPT_VER, "Show version")
 
 	info.AddExample(
-		"", "Generate makefile for project in current directory and save as Makefile",
+		".", "Generate makefile for project in current directory and save as Makefile",
 	)
 
 	info.AddExample(
