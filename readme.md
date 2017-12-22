@@ -41,16 +41,16 @@ Usage: gomakegen {options} dir
 
 Options
 
-  --glide, -g ........ Add target to fetching dependecies with glide
-  --dep, -d .......... Add target to fetching dependecies with dep
-  --metalinter, -m ... Add target with metalinter check
-  --strip, -s ........ Strip binary
-  --benchmark, -b .... Add target to run benchmarks
-  --verbose, -V ...... Enable verbose output for tests
-  --output, -o file .. Output file (Makefile by default)
-  --no-color, -nc .... Disable colors in output
-  --help, -h ......... Show this help message
-  --version, -v ...... Show version
+  --glide, -g          Add target to fetching dependecies with glide
+  --dep, -d            Add target to fetching dependecies with dep
+  --metalinter, -m     Add target with metalinter check
+  --strip, -s          Strip binary
+  --benchmark, -b      Add target to run benchmarks
+  --verbose, -V        Enable verbose output for tests
+  --output, -o file    Output file (Makefile by default)
+  --no-color, -nc      Disable colors in output
+  --help, -h           Show this help message
+  --version, -v        Show version
 
 Examples
 
