@@ -566,6 +566,8 @@ func (m *Makefile) getTargets() string {
 	var result string
 
 	result += m.getBinTarget()
+	result += m.getInstallTarget()
+	result += m.getUninstallTarget()
 	result += m.getDepsTarget()
 	result += m.getTestTarget()
 	result += m.getGlideTarget()
@@ -642,6 +644,44 @@ func (m *Makefile) getBinTarget() string {
 			result += "\tgo build " + bin + ".go\n\n"
 		}
 	}
+
+	return result
+}
+
+// getInstallTarget generate target for "install" command
+func (m *Makefile) getInstallTarget() string {
+	if len(m.Binaries) == 0 {
+		return ""
+	}
+
+	var result string
+
+	result += "install: ## Install binaries\n"
+
+	for _, bin := range m.Binaries {
+		result += "\tcp " + bin + " /usr/bin/" + bin + "\n"
+	}
+
+	result += "\n"
+
+	return result
+}
+
+// getUninstallTarget generate target for "uninstall" command
+func (m *Makefile) getUninstallTarget() string {
+	if len(m.Binaries) == 0 {
+		return ""
+	}
+
+	var result string
+
+	result += "uninstall: ## Uninstall binaries\n"
+
+	for _, bin := range m.Binaries {
+		result += "\trm -f /usr/bin/" + bin + "\n"
+	}
+
+	result += "\n"
 
 	return result
 }
@@ -740,7 +780,7 @@ func (m *Makefile) getCleanTarget() string {
 
 	var result string
 
-	result += "clean: ## Clean all\n"
+	result += "clean: ## Remove generated files\n"
 
 	for _, bin := range m.Binaries {
 		result += "\trm -f " + bin + "\n"

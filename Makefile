@@ -15,6 +15,12 @@ all: gomakegen ## Build all binaries
 gomakegen: ## Build gomakegen binary
 	go build -ldflags="-s -w" gomakegen.go
 
+install: ## Install binaries
+	cp gomakegen /usr/bin/gomakegen
+
+uninstall: ## Uninstall binaries
+	rm -f /usr/bin/gomakegen
+
 deps: ## Download dependencies
 	git config --global http.https://pkg.re.followRedirects true
 	go get -d -v pkg.re/essentialkaos/ek.v9
@@ -26,7 +32,7 @@ metalinter: ## Install and run gometalinter
 	test -s $(GOPATH)/bin/gometalinter || (go get -u github.com/alecthomas/gometalinter ; $(GOPATH)/bin/gometalinter --install)
 	$(GOPATH)/bin/gometalinter --deadline 30s
 
-clean: ## Clean all
+clean: ## Remove generated files
 	rm -f gomakegen
 
 help: ## Show this info
