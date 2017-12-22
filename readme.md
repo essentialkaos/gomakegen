@@ -54,6 +54,9 @@ Options
 
 Examples
 
+  gomakegen .
+  Generate makefile for project in current directory and save as Makefile
+
   gomakegen $GOPATH/src/github.com/profile/project
   Generate makefile for github.com/profile/project and save as Makefile
 

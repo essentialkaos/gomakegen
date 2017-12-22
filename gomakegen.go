@@ -8,6 +8,7 @@ package main
 // ////////////////////////////////////////////////////////////////////////////////// //
 
 import (
+	"bufio"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,18 +25,21 @@ import (
 	"pkg.re/essentialkaos/ek.v9/options"
 	"pkg.re/essentialkaos/ek.v9/path"
 	"pkg.re/essentialkaos/ek.v9/sliceutil"
+	"pkg.re/essentialkaos/ek.v9/strutil"
 	"pkg.re/essentialkaos/ek.v9/usage"
 	"pkg.re/essentialkaos/ek.v9/usage/update"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
+// App info
 const (
 	APP  = "gomakegen"
-	VER  = "0.6.1"
+	VER  = "0.7.0"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
+// Constants with options names
 const (
 	OPT_GLIDE      = "g:glide"
 	OPT_DEP        = "d:dep"
@@ -49,10 +53,12 @@ const (
 	OPT_VER        = "v:version"
 )
 
+// SEPARATOR_SIZE is default separator size
 const SEPARATOR_SIZE = 80
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
+// Makefile contains full info for makefile generation
 type Makefile struct {
 	BaseImports []string
 	TestImports []string
@@ -70,6 +76,7 @@ type Makefile struct {
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
+// Options map
 var optMap = options.Map{
 	OPT_OUTPUT:     {Value: "Makefile"},
 	OPT_GLIDE:      {Type: options.BOOL},
@@ -83,6 +90,7 @@ var optMap = options.Map{
 	OPT_VER:        {Type: options.BOOL, Alias: "ver"},
 }
 
+// Paths for check package
 var checkPackageImports = []string{
 	"github.com/go-check/check",
 	"gopkg.in/check.v1",
@@ -175,12 +183,14 @@ func exportMakefile(makefile *Makefile) {
 func generateMakefile(sources []string, dir string) *Makefile {
 	makefile := collectImports(sources, dir)
 
-	makefile.Metalinter = options.GetB(OPT_METALINTER)
-	makefile.Benchmark = options.GetB(OPT_BENCHMARK)
-	makefile.VerbTests = options.GetB(OPT_VERB_TESTS)
-	makefile.Strip = options.GetB(OPT_STRIP)
-	makefile.GlideUsed = fsutil.IsExist(dir + "/glide.yaml")
-	makefile.DepUsed = fsutil.IsExist(dir + "/Gopkg.toml")
+	applyOptionsFromMakefile(dir+"/"+options.GetS(OPT_OUTPUT), makefile)
+
+	makefile.Metalinter = makefile.Metalinter || options.GetB(OPT_METALINTER)
+	makefile.Benchmark = makefile.Benchmark || options.GetB(OPT_BENCHMARK)
+	makefile.VerbTests = makefile.VerbTests || options.GetB(OPT_VERB_TESTS)
+	makefile.Strip = makefile.Strip || options.GetB(OPT_STRIP)
+	makefile.GlideUsed = makefile.GlideUsed && fsutil.IsExist(dir+"/glide.yaml")
+	makefile.DepUsed = makefile.DepUsed && fsutil.IsExist(dir+"/Gopkg.toml")
 
 	if options.GetB(OPT_GLIDE) {
 		makefile.GlideUsed = true
@@ -369,11 +379,7 @@ func isPackageRoot(path string) bool {
 
 	files := fsutil.List(path, true, fsutil.ListingFilter{MatchPatterns: []string{"*.go"}})
 
-	if len(files) == 0 {
-		return false
-	}
-
-	return true
+	return len(files) != 0
 }
 
 // isExternalPackage return true if given package is external
@@ -450,6 +456,63 @@ func getGitConfigurationForStableImports(imports []string) []string {
 	return result
 }
 
+// applyOptionsFromFile read used options from previously generated Makefile
+// and apply it to makefile struct
+func applyOptionsFromMakefile(file string, m *Makefile) {
+	if !fsutil.IsExist(file) {
+		return
+	}
+
+	opts := extractOptionsFromMakefile(file)
+
+	if opts == "" {
+		return
+	}
+
+	for _, opt := range strutil.Fields(opts) {
+		switch strings.TrimLeft(opt, "-") {
+		case getOptionName(OPT_GLIDE):
+			m.GlideUsed = true
+		case getOptionName(OPT_DEP):
+			m.DepUsed = true
+		case getOptionName(OPT_METALINTER):
+			m.Metalinter = true
+		case getOptionName(OPT_STRIP):
+			m.Strip = true
+		case getOptionName(OPT_BENCHMARK):
+			m.Benchmark = true
+		case getOptionName(OPT_VERB_TESTS):
+			m.VerbTests = true
+		}
+	}
+}
+
+// extractOptionsFromMakefile extract options from previously generated Makefile
+func extractOptionsFromMakefile(file string) string {
+	fd, err := os.OpenFile(file, os.O_RDONLY, 0)
+
+	if err != nil {
+		return ""
+	}
+
+	defer fd.Close()
+
+	r := bufio.NewReader(fd)
+	s := bufio.NewScanner(r)
+
+	for s.Scan() {
+		text := s.Text()
+
+		if !strings.HasPrefix(text, "# gomakegen ") {
+			continue
+		}
+
+		return strings.Replace(text, "# gomakegen ", "", -1)
+	}
+
+	return ""
+}
+
 // printError prints error message to console
 func printError(f string, a ...interface{}) {
 	fmtc.Fprintf(os.Stderr, "{r}"+f+"{!}\n", a...)
@@ -491,6 +554,7 @@ func (m *Makefile) getHeader() string {
 	result += getSeparator() + "\n\n"
 	result += m.getGenerationComment()
 	result += getSeparator() + "\n\n"
+	result += m.getDefaultGoal() + "\n"
 	result += m.getPhony() + "\n"
 	result += getSeparator() + "\n\n"
 
@@ -502,6 +566,8 @@ func (m *Makefile) getTargets() string {
 	var result string
 
 	result += m.getBinTarget()
+	result += m.getInstallTarget()
+	result += m.getUninstallTarget()
 	result += m.getDepsTarget()
 	result += m.getTestTarget()
 	result += m.getGlideTarget()
@@ -509,6 +575,7 @@ func (m *Makefile) getTargets() string {
 	result += m.getFmtTarget()
 	result += m.getMetalinterTarget()
 	result += m.getCleanTarget()
+	result += m.getHelpTarget()
 
 	result += getSeparator() + "\n"
 
@@ -532,7 +599,7 @@ func (m *Makefile) getPhony() string {
 	}
 
 	if m.GlideUsed {
-		phony = append(phony, "glide-init", "glide-install", "glide-update")
+		phony = append(phony, "glide-create", "glide-install", "glide-update")
 	}
 
 	if m.DepUsed {
@@ -547,7 +614,14 @@ func (m *Makefile) getPhony() string {
 		phony = append(phony, "metalinter")
 	}
 
+	phony = append(phony, "help")
+
 	return ".PHONY = " + strings.Join(phony, " ") + "\n"
+}
+
+// getDefaultGoal return DEFAULT_GOAL part of makefile
+func (m *Makefile) getDefaultGoal() string {
+	return ".DEFAULT_GOAL := help"
 }
 
 // getBinTarget generate target for "all" command and all sub targets
@@ -559,10 +633,10 @@ func (m *Makefile) getBinTarget() string {
 
 	var result string
 
-	result += "all: " + strings.Join(m.Binaries, " ") + "\n\n"
+	result += "all: " + strings.Join(m.Binaries, " ") + " ## Build all binaries\n\n"
 
 	for _, bin := range m.Binaries {
-		result += bin + ":\n"
+		result += bin + ": ## " + fmtc.Sprintf("Build %s binary", bin) + "\n"
 
 		if m.Strip {
 			result += "\tgo build -ldflags=\"-s -w\" " + bin + ".go\n\n"
@@ -570,6 +644,44 @@ func (m *Makefile) getBinTarget() string {
 			result += "\tgo build " + bin + ".go\n\n"
 		}
 	}
+
+	return result
+}
+
+// getInstallTarget generate target for "install" command
+func (m *Makefile) getInstallTarget() string {
+	if len(m.Binaries) == 0 {
+		return ""
+	}
+
+	var result string
+
+	result += "install: ## Install binaries\n"
+
+	for _, bin := range m.Binaries {
+		result += "\tcp " + bin + " /usr/bin/" + bin + "\n"
+	}
+
+	result += "\n"
+
+	return result
+}
+
+// getUninstallTarget generate target for "uninstall" command
+func (m *Makefile) getUninstallTarget() string {
+	if len(m.Binaries) == 0 {
+		return ""
+	}
+
+	var result string
+
+	result += "uninstall: ## Uninstall binaries\n"
+
+	for _, bin := range m.Binaries {
+		result += "\trm -f /usr/bin/" + bin + "\n"
+	}
+
+	result += "\n"
 
 	return result
 }
@@ -582,7 +694,7 @@ func (m *Makefile) getDepsTarget() string {
 
 	var result string
 
-	result += "deps:\n"
+	result += "deps: ## Download dependencies\n"
 
 	if containsStablePathImports(m.BaseImports) {
 		for _, gitCommand := range getGitConfigurationForStableImports(m.BaseImports) {
@@ -609,7 +721,7 @@ func (m *Makefile) getTestTarget() string {
 	var result string
 
 	if len(m.TestImports) != 0 {
-		result += "deps-test:\n"
+		result += "deps-test: ## Download dependencies for tests\n"
 
 		if containsStablePathImports(m.TestImports) {
 			for _, gitCommand := range getGitConfigurationForStableImports(m.TestImports) {
@@ -624,7 +736,7 @@ func (m *Makefile) getTestTarget() string {
 		result += "\n"
 	}
 
-	result += "test:\n"
+	result += "test: ## Run tests\n"
 
 	if m.VerbTests {
 		result += "\tgo test -v -covermode=count .\n"
@@ -635,7 +747,7 @@ func (m *Makefile) getTestTarget() string {
 	result += "\n"
 
 	if m.Benchmark {
-		result += "benchmark:\n"
+		result += "benchmark: ## Run benchmarks\n"
 
 		if containsPackage(m.TestImports, checkPackageImports) {
 			result += "\tgo test -check.v -check.b -check.bmem\n"
@@ -653,7 +765,7 @@ func (m *Makefile) getTestTarget() string {
 func (m *Makefile) getFmtTarget() string {
 	var result string
 
-	result += "fmt:\n"
+	result += "fmt: ## Format source code with gofmt\n"
 	result += "\tfind . -name \"*.go\" -exec gofmt -s -w {} \\;\n"
 	result += "\n"
 
@@ -668,7 +780,7 @@ func (m *Makefile) getCleanTarget() string {
 
 	var result string
 
-	result += "clean:\n"
+	result += "clean: ## Remove generated files\n"
 
 	for _, bin := range m.Binaries {
 		result += "\trm -f " + bin + "\n"
@@ -688,18 +800,18 @@ func (m *Makefile) getGlideTarget() string {
 
 	var result string
 
-	result += "glide-init:\n"
+	result += "glide-create: ## Initialize glide workspace\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\tglide init\n"
 	result += "\n"
 
-	result += "glide-install:\n"
+	result += "glide-install: ## Install packages and dependencies through glide\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\ttest -s glide.yaml || glide init\n"
 	result += "\tglide install\n"
 	result += "\n"
 
-	result += "glide-update:\n"
+	result += "glide-update: ## Update packages and dependencies through glide\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\ttest -s glide.yaml || glide init\n"
 	result += "\tglide update\n"
@@ -717,12 +829,12 @@ func (m *Makefile) getDepTarget() string {
 
 	var result string
 
-	result += "dep-init:\n"
+	result += "dep-init: ## Initialize dep workspace\n"
 	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
 	result += "\tdep init\n"
 	result += "\n"
 
-	result += "dep-update:\n"
+	result += "dep-update: ## Update packages and dependencies through dep\n"
 	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
 	result += "\ttest -s Gopkg.toml || dep init\n"
 	result += "\tdep ensure -update\n"
@@ -739,9 +851,23 @@ func (m *Makefile) getMetalinterTarget() string {
 
 	var result string
 
-	result += "metalinter:\n"
+	result += "metalinter: ## Install and run gometalinter\n"
 	result += "\ttest -s $(GOPATH)/bin/gometalinter || (go get -u github.com/alecthomas/gometalinter ; $(GOPATH)/bin/gometalinter --install)\n"
 	result += "\t$(GOPATH)/bin/gometalinter --deadline 30s\n"
+	result += "\n"
+
+	return result
+}
+
+// getHelpTarget generate target for "help" command
+func (m *Makefile) getHelpTarget() string {
+	var result string
+
+	result += "help: ## Show this info\n"
+	result += "\t@echo -e '\\nSupported targets:\\n'\n"
+	result += "\t@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \\\n"
+	result += "\t\t| awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \\033[33m%-12s\\033[0m %s\\n\", $$1, $$2}'\n"
+	result += "\t@echo -e ''\n"
 	result += "\n"
 
 	return result
@@ -754,35 +880,48 @@ func (m *Makefile) getGenerationComment() string {
 	result = "# This Makefile generated by GoMakeGen " + VER + " using next command:\n"
 	result += "# gomakegen "
 
-	if options.GetB(OPT_METALINTER) {
-		metalinterOpt, _ := options.ParseOptionName(OPT_METALINTER)
-		result += fmtc.Sprintf("--%s ", metalinterOpt)
+	if m.GlideUsed {
+		result += fmtc.Sprintf("--%s ", getOptionName(OPT_GLIDE))
 	}
 
-	if options.GetB(OPT_STRIP) {
-		stripOpt, _ := options.ParseOptionName(OPT_STRIP)
-		result += fmtc.Sprintf("--%s ", stripOpt)
+	if m.DepUsed {
+		result += fmtc.Sprintf("--%s ", getOptionName(OPT_DEP))
 	}
 
-	if options.GetB(OPT_BENCHMARK) {
-		benchOpt, _ := options.ParseOptionName(OPT_BENCHMARK)
-		result += fmtc.Sprintf("--%s ", benchOpt)
+	if m.Metalinter {
+		result += fmtc.Sprintf("--%s ", getOptionName(OPT_METALINTER))
 	}
 
-	if options.GetB(OPT_VERB_TESTS) {
-		verbOpt, _ := options.ParseOptionName(OPT_VERB_TESTS)
-		result += fmtc.Sprintf("--%s ", verbOpt)
+	if m.Strip {
+		result += fmtc.Sprintf("--%s ", getOptionName(OPT_STRIP))
+	}
+
+	if m.Benchmark {
+		result += fmtc.Sprintf("--%s ", getOptionName(OPT_BENCHMARK))
+	}
+
+	if m.VerbTests {
+		result += fmtc.Sprintf("--%s ", getOptionName(OPT_VERB_TESTS))
 	}
 
 	if options.GetS(OPT_OUTPUT) != "Makefile" {
-		outputOpt, _ := options.ParseOptionName(OPT_OUTPUT)
-		result += fmtc.Sprintf("--%s %s ", outputOpt, options.GetS(OPT_OUTPUT))
+		result += fmtc.Sprintf(
+			"--%s %s ",
+			getOptionName(OPT_OUTPUT),
+			options.GetS(OPT_OUTPUT),
+		)
 	}
 
-	result += ".\n"
-	result += "\n"
+	result += ".\n\n"
 
 	return result
+}
+
+// getOptionName parse option name in options package notation
+// and retunr long option name
+func getOptionName(opt string) string {
+	longOpt, _ := options.ParseOptionName(opt)
+	return longOpt
 }
 
 // getSeparator return separator
@@ -806,6 +945,10 @@ func showUsage() {
 	info.AddOption(OPT_NO_COLOR, "Disable colors in output")
 	info.AddOption(OPT_HELP, "Show this help message")
 	info.AddOption(OPT_VER, "Show version")
+
+	info.AddExample(
+		".", "Generate makefile for project in current directory and save as Makefile",
+	)
 
 	info.AddExample(
 		"$GOPATH/src/github.com/profile/project",
