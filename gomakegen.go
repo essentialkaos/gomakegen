@@ -35,7 +35,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "0.7.0"
+	VER  = "0.7.1"
 	DESC = "Utility for generating makefiles for Golang applications"
 )
 
@@ -64,11 +64,12 @@ type Makefile struct {
 	TestImports []string
 	Binaries    []string
 
-	HasTests   bool
-	Benchmark  bool
-	VerbTests  bool
-	Metalinter bool
-	Strip      bool
+	HasTests       bool
+	Benchmark      bool
+	VerbTests      bool
+	Metalinter     bool
+	Strip          bool
+	HasSubpackages bool
 
 	GlideUsed bool
 	DepUsed   bool
@@ -209,13 +210,14 @@ func generateMakefile(sources []string, dir string) *Makefile {
 // base sources, test sources and slice with binaries
 func collectImports(sources []string, dir string) *Makefile {
 	var (
-		bImports map[string]bool
-		tImports map[string]bool
-		binaries []string
-		imports  []string
-		isBinary bool
-		source   string
-		path     string
+		bImports   map[string]bool
+		tImports   map[string]bool
+		binaries   []string
+		imports    []string
+		isBinary   bool
+		hasSubPkgs bool
+		source     string
+		path       string
 	)
 
 	bSources, tSources := splitSources(sources)
@@ -233,6 +235,10 @@ func collectImports(sources []string, dir string) *Makefile {
 		if isBinary && !strings.Contains(source, "/") {
 			binaries = append(binaries, source)
 		}
+
+		if !hasSubPkgs && strings.Contains(source, "/") {
+			hasSubPkgs = true
+		}
 	}
 
 	if len(tSources) != 0 {
@@ -248,10 +254,11 @@ func collectImports(sources []string, dir string) *Makefile {
 	}
 
 	return &Makefile{
-		BaseImports: importMapToSlice(bImports),
-		TestImports: importMapToSlice(tImports),
-		Binaries:    binaries,
-		HasTests:    hasTests(sources),
+		BaseImports:    importMapToSlice(bImports),
+		TestImports:    importMapToSlice(tImports),
+		Binaries:       binaries,
+		HasTests:       hasTests(sources),
+		HasSubpackages: hasSubPkgs,
 	}
 }
 
@@ -736,12 +743,18 @@ func (m *Makefile) getTestTarget() string {
 		result += "\n"
 	}
 
+	targets := "."
+
+	if m.HasSubpackages {
+		targets = "./..."
+	}
+
 	result += "test: ## Run tests\n"
 
 	if m.VerbTests {
-		result += "\tgo test -v -covermode=count .\n"
+		result += "\tgo test -v -covermode=count " + targets + "\n"
 	} else {
-		result += "\tgo test -covermode=count .\n"
+		result += "\tgo test -covermode=count " + targets + "\n"
 	}
 
 	result += "\n"
