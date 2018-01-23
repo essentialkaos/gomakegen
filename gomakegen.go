@@ -209,53 +209,14 @@ func generateMakefile(sources []string, dir string) *Makefile {
 // collectImports collect import from source files and return imports for
 // base sources, test sources and slice with binaries
 func collectImports(sources []string, dir string) *Makefile {
-	var (
-		bImports   map[string]bool
-		tImports   map[string]bool
-		binaries   []string
-		imports    []string
-		isBinary   bool
-		hasSubPkgs bool
-		source     string
-		path       string
-	)
+	baseSources, testSources := splitSources(sources)
 
-	bSources, tSources := splitSources(sources)
-
-	bImports = make(map[string]bool)
-
-	for _, source = range bSources {
-		imports, isBinary = extractImports(source, dir)
-
-		for _, path = range imports {
-			bImports[path] = true
-		}
-
-		// Append to slice only binaries in root directory
-		if isBinary && !strings.Contains(source, "/") {
-			binaries = append(binaries, source)
-		}
-
-		if !hasSubPkgs && strings.Contains(source, "/") {
-			hasSubPkgs = true
-		}
-	}
-
-	if len(tSources) != 0 {
-		tImports = make(map[string]bool)
-
-		for _, source = range tSources {
-			imports, _ = extractImports(source, dir)
-
-			for _, path = range imports {
-				tImports[path] = true
-			}
-		}
-	}
+	baseImports, binaries, hasSubPkgs := extractBaseImports(baseSources, dir)
+	testImports := extractTestImports(testSources, dir)
 
 	return &Makefile{
-		BaseImports:    importMapToSlice(bImports),
-		TestImports:    importMapToSlice(tImports),
+		BaseImports:    baseImports,
+		TestImports:    testImports,
 		Binaries:       binaries,
 		HasTests:       hasTests(sources),
 		HasSubpackages: hasSubPkgs,
@@ -279,6 +240,51 @@ func splitSources(sources []string) ([]string, []string) {
 	}
 
 	return bSources, tSources
+}
+
+// extractBaseImports extract base imports from given source files
+func extractBaseImports(sources []string, dir string) ([]string, []string, bool) {
+	importsMap := make(map[string]bool)
+	binaries := make([]string, 0)
+	hasSubPkgs := false
+
+	for _, source := range sources {
+		imports, isBinary := extractImports(source, dir)
+
+		for _, path := range imports {
+			importsMap[path] = true
+		}
+
+		// Append to slice only binaries in root directory
+		if isBinary && !strings.Contains(source, "/") {
+			binaries = append(binaries, source)
+		}
+
+		if !hasSubPkgs && strings.Contains(source, "/") {
+			hasSubPkgs = true
+		}
+	}
+
+	return importMapToSlice(importsMap), binaries, hasSubPkgs
+}
+
+// extractTestImports extract test imports from given source files
+func extractTestImports(sources []string, dir string) []string {
+	if len(sources) == 0 {
+		return nil
+	}
+
+	importsMap := make(map[string]bool)
+
+	for _, source := range sources {
+		imports, _ := extractImports(source, dir)
+
+		for _, path := range imports {
+			importsMap[path] = true
+		}
+	}
+
+	return importMapToSlice(importsMap)
 }
 
 // cleanupImports remove internal packages and local imports
