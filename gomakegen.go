@@ -35,8 +35,8 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "0.7.1"
-	DESC = "Utility for generating makefiles for Golang applications"
+	VER  = "0.8.0"
+	DESC = "Utility for generating makefiles for Go applications"
 )
 
 // Constants with options names
@@ -46,6 +46,7 @@ const (
 	OPT_METALINTER = "m:metalinter"
 	OPT_STRIP      = "s:strip"
 	OPT_BENCHMARK  = "b:benchmark"
+	OPT_RACE       = "r:race"
 	OPT_VERB_TESTS = "V:verbose"
 	OPT_OUTPUT     = "o:output"
 	OPT_NO_COLOR   = "nc:no-color"
@@ -67,6 +68,7 @@ type Makefile struct {
 	HasTests       bool
 	Benchmark      bool
 	VerbTests      bool
+	Race           bool
 	Metalinter     bool
 	Strip          bool
 	HasSubpackages bool
@@ -86,6 +88,7 @@ var optMap = options.Map{
 	OPT_STRIP:      {Type: options.BOOL},
 	OPT_BENCHMARK:  {Type: options.BOOL},
 	OPT_VERB_TESTS: {Type: options.BOOL},
+	OPT_RACE:       {Type: options.BOOL},
 	OPT_NO_COLOR:   {Type: options.BOOL},
 	OPT_HELP:       {Type: options.BOOL, Alias: "u:usage"},
 	OPT_VER:        {Type: options.BOOL, Alias: "ver"},
@@ -189,6 +192,7 @@ func generateMakefile(sources []string, dir string) *Makefile {
 	makefile.Metalinter = makefile.Metalinter || options.GetB(OPT_METALINTER)
 	makefile.Benchmark = makefile.Benchmark || options.GetB(OPT_BENCHMARK)
 	makefile.VerbTests = makefile.VerbTests || options.GetB(OPT_VERB_TESTS)
+	makefile.Race = makefile.Race || options.GetB(OPT_RACE)
 	makefile.Strip = makefile.Strip || options.GetB(OPT_STRIP)
 	makefile.GlideUsed = makefile.GlideUsed && fsutil.IsExist(dir+"/glide.yaml")
 	makefile.DepUsed = makefile.DepUsed && fsutil.IsExist(dir+"/Gopkg.toml")
@@ -496,6 +500,8 @@ func applyOptionsFromMakefile(file string, m *Makefile) {
 			m.Benchmark = true
 		case getOptionName(OPT_VERB_TESTS):
 			m.VerbTests = true
+		case getOptionName(OPT_RACE):
+			m.Race = true
 		}
 	}
 }
@@ -582,7 +588,9 @@ func (m *Makefile) getTargets() string {
 	result += m.getInstallTarget()
 	result += m.getUninstallTarget()
 	result += m.getDepsTarget()
+	result += m.getTestDepsTarget()
 	result += m.getTestTarget()
+	result += m.getBenchTarget()
 	result += m.getGlideTarget()
 	result += m.getDepTarget()
 	result += m.getFmtTarget()
@@ -652,13 +660,13 @@ func (m *Makefile) getBinTarget() string {
 		result += bin + ": ## " + fmtc.Sprintf("Build %s binary", bin) + "\n"
 
 		if m.Strip {
-			result += "\tgo build -ldflags=\"-s -w\" " + bin + ".go\n\n"
+			result += "\tgo build -ldflags=\"-s -w\" " + bin + ".go\n"
 		} else {
-			result += "\tgo build " + bin + ".go\n\n"
+			result += "\tgo build " + bin + ".go\n"
 		}
 	}
 
-	return result
+	return result + "\n"
 }
 
 // getInstallTarget generate target for "install" command
@@ -675,9 +683,7 @@ func (m *Makefile) getInstallTarget() string {
 		result += "\tcp " + bin + " /usr/bin/" + bin + "\n"
 	}
 
-	result += "\n"
-
-	return result
+	return result + "\n"
 }
 
 // getUninstallTarget generate target for "uninstall" command
@@ -694,9 +700,7 @@ func (m *Makefile) getUninstallTarget() string {
 		result += "\trm -f /usr/bin/" + bin + "\n"
 	}
 
-	result += "\n"
-
-	return result
+	return result + "\n"
 }
 
 // getDepsTarget generate target for "deps" command
@@ -719,34 +723,34 @@ func (m *Makefile) getDepsTarget() string {
 		result += "\tgo get -d -v " + pkg + "\n"
 	}
 
-	result += "\n"
-
-	return result
+	return result + "\n"
 }
 
-// getTestTarget generate target for "test", "deps-test"
-// and "benchmark" commands
-func (m *Makefile) getTestTarget() string {
-	if !m.HasTests {
+// getDepsTarget generate target for "deps-test" command
+func (m *Makefile) getTestDepsTarget() string {
+	if len(m.TestImports) == 0 {
 		return ""
 	}
 
-	var result string
+	result := "deps-test: ## Download dependencies for tests\n"
 
-	if len(m.TestImports) != 0 {
-		result += "deps-test: ## Download dependencies for tests\n"
-
-		if containsStablePathImports(m.TestImports) {
-			for _, gitCommand := range getGitConfigurationForStableImports(m.TestImports) {
-				result += "\t" + gitCommand + "\n"
-			}
+	if containsStablePathImports(m.TestImports) {
+		for _, gitCommand := range getGitConfigurationForStableImports(m.TestImports) {
+			result += "\t" + gitCommand + "\n"
 		}
+	}
 
-		for _, pkg := range m.TestImports {
-			result += "\tgo get -d -v " + pkg + "\n"
-		}
+	for _, pkg := range m.TestImports {
+		result += "\tgo get -d -v " + pkg + "\n"
+	}
 
-		result += "\n"
+	return result + "\n"
+}
+
+// getTestTarget generate target for "test" command
+func (m *Makefile) getTestTarget() string {
+	if !m.HasTests {
+		return ""
 	}
 
 	targets := "."
@@ -755,7 +759,15 @@ func (m *Makefile) getTestTarget() string {
 		targets = "./..."
 	}
 
-	result += "test: ## Run tests\n"
+	result := "test: ## Run tests\n"
+
+	if m.Race {
+		if m.VerbTests {
+			result += "\tgo test -v -race " + targets + "\n"
+		} else {
+			result += "\tgo test -race " + targets + "\n"
+		}
+	}
 
 	if m.VerbTests {
 		result += "\tgo test -v -covermode=count " + targets + "\n"
@@ -763,21 +775,24 @@ func (m *Makefile) getTestTarget() string {
 		result += "\tgo test -covermode=count " + targets + "\n"
 	}
 
-	result += "\n"
+	return result + "\n"
+}
 
-	if m.Benchmark {
-		result += "benchmark: ## Run benchmarks\n"
-
-		if containsPackage(m.TestImports, checkPackageImports) {
-			result += "\tgo test -check.v -check.b -check.bmem\n"
-		} else {
-			result += "\tgo test -bench=.\n"
-		}
-
-		result += "\n"
+// getBenchTarget generate target for "benchmark" command
+func (m *Makefile) getBenchTarget() string {
+	if !m.Benchmark {
+		return ""
 	}
 
-	return result
+	result := "benchmark: ## Run benchmarks\n"
+
+	if containsPackage(m.TestImports, checkPackageImports) {
+		result += "\tgo test -check.v -check.b -check.bmem\n"
+	} else {
+		result += "\tgo test -bench=.\n"
+	}
+
+	return result + "\n"
 }
 
 // getFmtTarget generate target for "fmt" command
@@ -786,9 +801,8 @@ func (m *Makefile) getFmtTarget() string {
 
 	result += "fmt: ## Format source code with gofmt\n"
 	result += "\tfind . -name \"*.go\" -exec gofmt -s -w {} \\;\n"
-	result += "\n"
 
-	return result
+	return result + "\n"
 }
 
 // getCleanTarget generate target for "clean" command
@@ -805,9 +819,7 @@ func (m *Makefile) getCleanTarget() string {
 		result += "\trm -f " + bin + "\n"
 	}
 
-	result += "\n"
-
-	return result
+	return result + "\n"
 }
 
 // getGlideTarget generate target for "glide-up" and
@@ -850,14 +862,12 @@ func (m *Makefile) getDepTarget() string {
 
 	result += "dep-init: ## Initialize dep workspace\n"
 	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
-	result += "\tdep init\n"
-	result += "\n"
+	result += "\tdep init\n\n"
 
 	result += "dep-update: ## Update packages and dependencies through dep\n"
 	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
 	result += "\ttest -s Gopkg.toml || dep init\n"
-	result += "\tdep ensure -update\n"
-	result += "\n"
+	result += "\tdep ensure -update\n\n"
 
 	return result
 }
@@ -872,8 +882,7 @@ func (m *Makefile) getMetalinterTarget() string {
 
 	result += "metalinter: ## Install and run gometalinter\n"
 	result += "\ttest -s $(GOPATH)/bin/gometalinter || (go get -u github.com/alecthomas/gometalinter ; $(GOPATH)/bin/gometalinter --install)\n"
-	result += "\t$(GOPATH)/bin/gometalinter --deadline 30s\n"
-	result += "\n"
+	result += "\t$(GOPATH)/bin/gometalinter --deadline 30s\n\n"
 
 	return result
 }
@@ -886,8 +895,7 @@ func (m *Makefile) getHelpTarget() string {
 	result += "\t@echo -e '\\nSupported targets:\\n'\n"
 	result += "\t@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \\\n"
 	result += "\t\t| awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \\033[33m%-12s\\033[0m %s\\n\", $$1, $$2}'\n"
-	result += "\t@echo -e ''\n"
-	result += "\n"
+	result += "\t@echo -e ''\n\n"
 
 	return result
 }
@@ -921,6 +929,10 @@ func (m *Makefile) getGenerationComment() string {
 
 	if m.VerbTests {
 		result += fmtc.Sprintf("--%s ", getOptionName(OPT_VERB_TESTS))
+	}
+
+	if m.Race {
+		result += fmtc.Sprintf("--%s ", getOptionName(OPT_RACE))
 	}
 
 	if options.GetS(OPT_OUTPUT) != "Makefile" {
@@ -960,6 +972,7 @@ func showUsage() {
 	info.AddOption(OPT_STRIP, "Strip binary")
 	info.AddOption(OPT_BENCHMARK, "Add target to run benchmarks")
 	info.AddOption(OPT_VERB_TESTS, "Enable verbose output for tests")
+	info.AddOption(OPT_RACE, "Add target to test race conditions")
 	info.AddOption(OPT_OUTPUT, "Output file {s-}(Makefile by default){!}", "file")
 	info.AddOption(OPT_NO_COLOR, "Disable colors in output")
 	info.AddOption(OPT_HELP, "Show this help message")
