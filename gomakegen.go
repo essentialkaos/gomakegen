@@ -35,7 +35,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "0.8.0"
+	VER  = "0.8.1"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -663,9 +663,11 @@ func (m *Makefile) getBinTarget() string {
 		} else {
 			result += "\tgo build " + bin + ".go\n"
 		}
+
+		result += "\n"
 	}
 
-	return result + "\n"
+	return result
 }
 
 // getInstallTarget generate target for "install" command
