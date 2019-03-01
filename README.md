@@ -15,7 +15,7 @@
 
 #### From source
 
-Before the initial install allows git to use redirects for [pkg.re](https://github.com/essentialkaos/pkgre) service (_reason why you should do this described [here](https://github.com/essentialkaos/pkgre#git-support)_):
+Before the initial install, allow git to use redirects for [pkg.re](https://github.com/essentialkaos/pkgre) service (_reason why you should do this described [here](https://github.com/essentialkaos/pkgre#git-support)_):
 
 ```
 git config --global http.https://pkg.re.followRedirects true
@@ -35,7 +35,11 @@ go get -u github.com/essentialkaos/gomakegen
 
 #### Prebuilt binaries
 
-You can download prebuilt binaries for Linux and OS X from [EK Apps Repository](https://apps.kaos.st/gomakegen/latest).
+You can download prebuilt binaries for Linux and OS X from [EK Apps Repository](https://apps.kaos.st/gomakegen/latest):
+
+```bash
+bash <(curl -fsSL https://apps.kaos.st/get) gomakegen
+```
 
 ### Usage
 
