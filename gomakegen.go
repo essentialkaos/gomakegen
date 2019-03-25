@@ -896,11 +896,11 @@ func (m *Makefile) getDepTarget() string {
 	}
 
 	result := "dep-init: ## Initialize dep workspace\n"
-	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
+	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
 	result += "\tdep init\n\n"
 
 	result += "dep-update: ## Update packages and dependencies through dep\n"
-	result += "\twhich dep &>/dev/null || (echo -e '\\e[31mDep is not installed\\e[0m' ; exit 1)\n"
+	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
 	result += "\ttest -s Gopkg.toml || dep init\n"
 	result += "\tdep ensure -update\n\n"
 
