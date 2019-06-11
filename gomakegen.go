@@ -64,8 +64,10 @@ const SEPARATOR_SIZE = 80
 type Makefile struct {
 	BaseImports []string
 	TestImports []string
-	FuzzTests   []string
 	Binaries    []string
+
+	FuzzPaths []string
+	TestPaths []string
 
 	PkgBase string
 
@@ -173,9 +175,26 @@ func process(dir string) {
 		},
 	)
 
+	sources = filterSources(sources)
+
 	makefile := generateMakefile(sources, dir)
 
 	exportMakefile(makefile)
+}
+
+// filterSources filter source files
+func filterSources(sources []string) []string {
+	var result []string
+
+	for _, source := range sources {
+		if strings.HasPrefix(source, "vendor/") {
+			continue
+		}
+
+		result = append(result, source)
+	}
+
+	return result
 }
 
 // exportMakefile renders makefile and write data to file
@@ -219,13 +238,14 @@ func collectImports(sources []string, dir string) *Makefile {
 	baseSources, testSources := splitSources(sources)
 
 	baseImports, binaries, hasSubPkgs := extractBaseImports(baseSources, dir)
-	testImports := extractTestImports(testSources, dir)
-	fuzzTests := collectFuzzTests(baseSources, dir)
+	testImports, testPaths := extractTestImports(testSources, dir)
+	fuzzPaths := collectFuzzPaths(baseSources, dir)
 
 	return &Makefile{
 		BaseImports:    baseImports,
 		TestImports:    testImports,
-		FuzzTests:      fuzzTests,
+		FuzzPaths:      fuzzPaths,
+		TestPaths:      testPaths,
 		PkgBase:        getBasePkgPath(dir),
 		Binaries:       binaries,
 		HasTests:       hasTests(sources),
@@ -279,26 +299,30 @@ func extractBaseImports(sources []string, dir string) ([]string, []string, bool)
 }
 
 // extractTestImports extracts test imports from given source files
-func extractTestImports(sources []string, dir string) []string {
+func extractTestImports(sources []string, dir string) ([]string, []string) {
 	if len(sources) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	importsMap := make(map[string]bool)
+	testPaths := make(map[string]bool)
 
 	for _, source := range sources {
 		imports, _ := extractImports(source, dir)
+		basePath := path.Dir(source)
 
 		for _, path := range imports {
 			importsMap[path] = true
 		}
+
+		testPaths["./"+basePath] = true
 	}
 
-	return importMapToSlice(importsMap)
+	return importMapToSlice(importsMap), importMapToSlice(testPaths)
 }
 
-// collectFuzzTests collects packages with fuzz tests
-func collectFuzzTests(sources []string, dir string) []string {
+// collectFuzzPaths collects paths with fuzz tests
+func collectFuzzPaths(sources []string, dir string) []string {
 	var result []string
 
 	for _, source := range sources {
@@ -679,7 +703,7 @@ func (m *Makefile) getPhony() string {
 		phony = append(phony, "deps-test", "test")
 	}
 
-	if len(m.FuzzTests) != 0 {
+	if len(m.FuzzPaths) != 0 {
 		phony = append(phony, "gen-fuzz")
 	}
 
@@ -743,7 +767,7 @@ func (m *Makefile) getInstallTarget() string {
 		return ""
 	}
 
-	result := "install: ## Install binaries\n"
+	result := "install: ## Install all binaries\n"
 
 	for _, bin := range m.Binaries {
 		result += "\tcp " + bin + " /usr/bin/" + bin + "\n"
@@ -758,7 +782,7 @@ func (m *Makefile) getUninstallTarget() string {
 		return ""
 	}
 
-	result := "uninstall: ## Uninstall binaries\n"
+	result := "uninstall: ## Uninstall all binaries\n"
 
 	for _, bin := range m.Binaries {
 		result += "\trm -f /usr/bin/" + bin + "\n"
@@ -849,7 +873,7 @@ func (m *Makefile) getTestTarget() string {
 	targets := "."
 
 	if m.HasSubpackages {
-		targets = "./..."
+		targets = strings.Join(m.TestPaths, " ")
 	}
 
 	result := "test: ## Run tests\n"
@@ -873,14 +897,14 @@ func (m *Makefile) getTestTarget() string {
 
 // getFuzzTarget generates target for "fuzz" command
 func (m *Makefile) getFuzzTarget() string {
-	if len(m.FuzzTests) == 0 {
+	if len(m.FuzzPaths) == 0 {
 		return ""
 	}
 
 	result := "gen-fuzz: ## Generate archives for fuzz testing\n"
 	result += "\twhich go-fuzz-build &>/dev/null || go get -u -v github.com/dvyukov/go-fuzz/go-fuzz-build\n"
 
-	for _, pkg := range m.FuzzTests {
+	for _, pkg := range m.FuzzPaths {
 		if pkg == "." {
 			result += fmt.Sprintf("\tgo-fuzz-build -o fuzz.zip %s\n", m.PkgBase)
 		} else {
@@ -973,7 +997,7 @@ func (m *Makefile) getDepTarget() string {
 	result += "dep-update: ## Update packages and dependencies through dep\n"
 	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
 	result += "\ttest -s Gopkg.toml || dep init\n"
-	result += "\tdep ensure -update\n\n"
+	result += "\ttest -s Gopkg.lock && dep ensure -update || dep ensure\n\n"
 
 	return result
 }
@@ -1011,7 +1035,7 @@ func (m *Makefile) getHelpTarget() string {
 	result := "help: ## Show this info\n"
 	result += "\t@echo -e '\\nSupported targets:\\n'\n"
 	result += "\t@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \\\n"
-	result += "\t\t| awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \\033[33m%-12s\\033[0m %s\\n\", $$1, $$2}'\n"
+	result += "\t\t| awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \\033[33m%-15s\\033[0m %s\\n\", $$1, $$2}'\n"
 	result += "\t@echo -e ''\n"
 	result += "\t@echo -e '\\033[90mGenerated by GoMakeGen " + VER + "\\033[0m\\n'\n\n"
 
