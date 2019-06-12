@@ -1046,7 +1046,7 @@ func (m *Makefile) getHelpTarget() string {
 	fmtSize := strconv.Itoa(m.MaxTargetNameSize)
 
 	result := "help: ## Show this info\n"
-	result += "\t@echo -e '\\nSupported targets:\\n'\n"
+	result += "\t@echo -e '\\n\\033[1mSupported targets:\\033[0m\\n'\n"
 	result += "\t@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \\\n"
 	result += "\t\t| awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \\033[33m%-" + fmtSize + "s\\033[0m %s\\n\", $$1, $$2}'\n"
 	result += "\t@echo -e ''\n"
