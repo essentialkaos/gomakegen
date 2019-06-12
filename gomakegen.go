@@ -9,19 +9,21 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"go/parser"
 	"go/token"
 
-	"pkg.re/essentialkaos/ek.v10/env"
 	"pkg.re/essentialkaos/ek.v10/fmtc"
 	"pkg.re/essentialkaos/ek.v10/fsutil"
+	"pkg.re/essentialkaos/ek.v10/mathutil"
 	"pkg.re/essentialkaos/ek.v10/options"
 	"pkg.re/essentialkaos/ek.v10/path"
 	"pkg.re/essentialkaos/ek.v10/sliceutil"
@@ -35,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.0.0"
+	VER  = "1.1.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -65,6 +67,13 @@ type Makefile struct {
 	BaseImports []string
 	TestImports []string
 	Binaries    []string
+
+	FuzzPaths []string
+	TestPaths []string
+
+	PkgBase string
+
+	MaxTargetNameSize int
 
 	HasTests         bool
 	Benchmark        bool
@@ -166,13 +175,29 @@ func process(dir string) {
 		dir, true,
 		fsutil.ListingFilter{
 			MatchPatterns: []string{"*.go"},
-			SizeGreater:   1,
+			SizeGreater:   1, // Ignore empty files
 		},
 	)
 
+	sources = filterSources(sources)
 	makefile := generateMakefile(sources, dir)
 
 	exportMakefile(makefile)
+}
+
+// filterSources removes sources from vendor directory from sources list
+func filterSources(sources []string) []string {
+	var result []string
+
+	for _, source := range sources {
+		if strings.HasPrefix(source, "vendor/") {
+			continue
+		}
+
+		result = append(result, source)
+	}
+
+	return result
 }
 
 // exportMakefile renders makefile and write data to file
@@ -216,11 +241,15 @@ func collectImports(sources []string, dir string) *Makefile {
 	baseSources, testSources := splitSources(sources)
 
 	baseImports, binaries, hasSubPkgs := extractBaseImports(baseSources, dir)
-	testImports := extractTestImports(testSources, dir)
+	testImports, testPaths := extractTestImports(testSources, dir)
+	fuzzPaths := collectFuzzPaths(baseSources, dir)
 
 	return &Makefile{
 		BaseImports:    baseImports,
 		TestImports:    testImports,
+		FuzzPaths:      fuzzPaths,
+		TestPaths:      testPaths,
+		PkgBase:        getBasePkgPath(dir),
 		Binaries:       binaries,
 		HasTests:       hasTests(sources),
 		HasSubpackages: hasSubPkgs,
@@ -273,22 +302,39 @@ func extractBaseImports(sources []string, dir string) ([]string, []string, bool)
 }
 
 // extractTestImports extracts test imports from given source files
-func extractTestImports(sources []string, dir string) []string {
+func extractTestImports(sources []string, dir string) ([]string, []string) {
 	if len(sources) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	importsMap := make(map[string]bool)
+	testPaths := make(map[string]bool)
 
 	for _, source := range sources {
 		imports, _ := extractImports(source, dir)
+		basePath := path.Dir(source)
 
 		for _, path := range imports {
 			importsMap[path] = true
 		}
+
+		testPaths["./"+basePath] = true
 	}
 
-	return importMapToSlice(importsMap)
+	return importMapToSlice(importsMap), importMapToSlice(testPaths)
+}
+
+// collectFuzzPaths collects paths with fuzz tests
+func collectFuzzPaths(sources []string, dir string) []string {
+	var result []string
+
+	for _, source := range sources {
+		if hasFuzzTests(source, dir) {
+			result = append(result, path.Dir(source))
+		}
+	}
+
+	return result
 }
 
 // cleanupImports removes internal packages and local imports
@@ -298,17 +344,15 @@ func cleanupImports(imports []string, dir string) []string {
 	}
 
 	result := make(map[string]bool)
-
-	gopath := env.Get().GetS("GOPATH")
-	absDir, _ := filepath.Abs(dir)
-	baseSrc := strings.Replace(absDir, gopath+"/src/", "", -1)
+	gopath := os.Getenv("GOPATH")
+	basePath := getBasePkgPath(dir)
 
 	for _, imp := range imports {
 		if !isExternalPackage(imp) {
 			continue
 		}
 
-		if strings.HasPrefix(imp, baseSrc) {
+		if strings.HasPrefix(imp, basePath) {
 			continue
 		}
 
@@ -352,6 +396,24 @@ func extractImports(source, dir string) ([]string, bool) {
 	}
 
 	return result, isBinary
+}
+
+// hasFuzzTest returns true if given source package
+func hasFuzzTests(source, dir string) bool {
+	fset := token.NewFileSet()
+	file := path.Join(dir, source)
+	f, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
+
+	if err != nil {
+		printError(err.Error())
+		os.Exit(1)
+	}
+
+	if len(f.Comments) == 0 {
+		return false
+	}
+
+	return strings.Contains(f.Comments[0].Text(), "+build gofuzz")
 }
 
 // hasTests returns true if project has tests
@@ -436,6 +498,14 @@ func containsPackage(imports []string, pkgs []string) bool {
 	}
 
 	return false
+}
+
+// getBasePkgPath returns base package path
+func getBasePkgPath(dir string) string {
+	gopath := os.Getenv("GOPATH")
+	absDir, _ := filepath.Abs(dir)
+
+	return strutil.Exclude(absDir, gopath+"/src/")
 }
 
 // containsStableImports returns true if imports contains stable import services path
@@ -601,6 +671,7 @@ func (m *Makefile) getTargets() string {
 	result += m.getDepsTarget()
 	result += m.getTestDepsTarget()
 	result += m.getTestTarget()
+	result += m.getFuzzTarget()
 	result += m.getBenchTarget()
 	result += m.getGlideTarget()
 	result += m.getDepTarget()
@@ -614,6 +685,8 @@ func (m *Makefile) getTargets() string {
 
 	return result
 }
+
+// codebeat:disable[ABC]
 
 // getPhony returns PHONY part of makefile
 func (m *Makefile) getPhony() string {
@@ -633,6 +706,10 @@ func (m *Makefile) getPhony() string {
 
 	if len(m.TestImports) != 0 {
 		phony = append(phony, "deps-test", "test")
+	}
+
+	if len(m.FuzzPaths) != 0 {
+		phony = append(phony, "gen-fuzz")
 	}
 
 	if m.GlideUsed {
@@ -657,8 +734,14 @@ func (m *Makefile) getPhony() string {
 
 	phony = append(phony, "help")
 
+	for _, target := range append(phony, m.Binaries...) {
+		m.MaxTargetNameSize = mathutil.Max(m.MaxTargetNameSize, len(target)+2)
+	}
+
 	return ".PHONY = " + strings.Join(phony, " ") + "\n"
 }
+
+// codebeat:enable[ABC]
 
 // getDefaultGoal returns DEFAULT_GOAL part of makefile
 func (m *Makefile) getDefaultGoal() string {
@@ -675,7 +758,7 @@ func (m *Makefile) getBinTarget() string {
 	result := "all: " + strings.Join(m.Binaries, " ") + " ## Build all binaries\n\n"
 
 	for _, bin := range m.Binaries {
-		result += bin + ": ## " + fmtc.Sprintf("Build %s binary", bin) + "\n"
+		result += bin + ": ## " + fmt.Sprintf("Build %s binary", bin) + "\n"
 
 		if m.Strip {
 			result += "\tgo build -ldflags=\"-s -w\" " + bin + ".go\n"
@@ -695,7 +778,7 @@ func (m *Makefile) getInstallTarget() string {
 		return ""
 	}
 
-	result := "install: ## Install binaries\n"
+	result := "install: ## Install all binaries\n"
 
 	for _, bin := range m.Binaries {
 		result += "\tcp " + bin + " /usr/bin/" + bin + "\n"
@@ -710,7 +793,7 @@ func (m *Makefile) getUninstallTarget() string {
 		return ""
 	}
 
-	result := "uninstall: ## Uninstall binaries\n"
+	result := "uninstall: ## Uninstall all binaries\n"
 
 	for _, bin := range m.Binaries {
 		result += "\trm -f /usr/bin/" + bin + "\n"
@@ -777,13 +860,13 @@ func (m *Makefile) getTestDepsTarget() string {
 		return ""
 	}
 
-	result := "deps-test: ## Download dependencies for tests\n"
+	result := "deps-test: "
 
-	if containsStableImports(m.TestImports) {
-		for _, gitCommand := range getGitConfigurationForStableImports(m.TestImports) {
-			result += "\t" + gitCommand + "\n"
-		}
+	if m.HasStableImports {
+		result += "git-config "
 	}
+
+	result += "## Download dependencies for tests\n"
 
 	for _, pkg := range m.TestImports {
 		result += "\tgo get -d -v " + pkg + "\n"
@@ -801,7 +884,7 @@ func (m *Makefile) getTestTarget() string {
 	targets := "."
 
 	if m.HasSubpackages {
-		targets = "./..."
+		targets = strings.Join(m.TestPaths, " ")
 	}
 
 	result := "test: ## Run tests\n"
@@ -818,6 +901,29 @@ func (m *Makefile) getTestTarget() string {
 		result += "\tgo test -v -covermode=count " + targets + "\n"
 	} else {
 		result += "\tgo test -covermode=count " + targets + "\n"
+	}
+
+	return result + "\n"
+}
+
+// getFuzzTarget generates target for "fuzz" command
+func (m *Makefile) getFuzzTarget() string {
+	if len(m.FuzzPaths) == 0 {
+		return ""
+	}
+
+	result := "gen-fuzz: ## Generate archives for fuzz testing\n"
+	result += "\twhich go-fuzz-build &>/dev/null || go get -u -v github.com/dvyukov/go-fuzz/go-fuzz-build\n"
+
+	for _, pkg := range m.FuzzPaths {
+		if pkg == "." {
+			result += fmt.Sprintf("\tgo-fuzz-build -o fuzz.zip %s\n", m.PkgBase)
+		} else {
+			pkgName := strings.Replace(pkg, "/", "-", -1)
+			binName := pkgName + "-fuzz.zip"
+
+			result += fmt.Sprintf("\tgo-fuzz-build -o %s %s/%s\n", binName, m.PkgBase, pkg)
+		}
 	}
 
 	return result + "\n"
@@ -902,7 +1008,7 @@ func (m *Makefile) getDepTarget() string {
 	result += "dep-update: ## Update packages and dependencies through dep\n"
 	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
 	result += "\ttest -s Gopkg.toml || dep init\n"
-	result += "\tdep ensure -update\n\n"
+	result += "\ttest -s Gopkg.lock && dep ensure -update || dep ensure\n\n"
 
 	return result
 }
@@ -937,11 +1043,14 @@ func (m *Makefile) getMetalinterTarget() string {
 
 // getHelpTarget generates target for "help" command
 func (m *Makefile) getHelpTarget() string {
+	fmtSize := strconv.Itoa(m.MaxTargetNameSize)
+
 	result := "help: ## Show this info\n"
-	result += "\t@echo -e '\\nSupported targets:\\n'\n"
+	result += "\t@echo -e '\\n\\033[1mSupported targets:\\033[0m\\n'\n"
 	result += "\t@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \\\n"
-	result += "\t\t| awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \\033[33m%-12s\\033[0m %s\\n\", $$1, $$2}'\n"
-	result += "\t@echo -e ''\n\n"
+	result += "\t\t| awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \\033[33m%-" + fmtSize + "s\\033[0m %s\\n\", $$1, $$2}'\n"
+	result += "\t@echo -e ''\n"
+	result += "\t@echo -e '\\033[90mGenerated by GoMakeGen " + VER + "\\033[0m\\n'\n\n"
 
 	return result
 }
@@ -952,39 +1061,39 @@ func (m *Makefile) getGenerationComment() string {
 	result += "# gomakegen "
 
 	if m.GlideUsed {
-		result += fmtc.Sprintf("--%s ", getOptionName(OPT_GLIDE))
+		result += fmt.Sprintf("--%s ", getOptionName(OPT_GLIDE))
 	}
 
 	if m.DepUsed {
-		result += fmtc.Sprintf("--%s ", getOptionName(OPT_DEP))
+		result += fmt.Sprintf("--%s ", getOptionName(OPT_DEP))
 	}
 
 	if m.ModUsed {
-		result += fmtc.Sprintf("--%s ", getOptionName(OPT_MOD))
+		result += fmt.Sprintf("--%s ", getOptionName(OPT_MOD))
 	}
 
 	if m.Metalinter {
-		result += fmtc.Sprintf("--%s ", getOptionName(OPT_METALINTER))
+		result += fmt.Sprintf("--%s ", getOptionName(OPT_METALINTER))
 	}
 
 	if m.Strip {
-		result += fmtc.Sprintf("--%s ", getOptionName(OPT_STRIP))
+		result += fmt.Sprintf("--%s ", getOptionName(OPT_STRIP))
 	}
 
 	if m.Benchmark {
-		result += fmtc.Sprintf("--%s ", getOptionName(OPT_BENCHMARK))
+		result += fmt.Sprintf("--%s ", getOptionName(OPT_BENCHMARK))
 	}
 
 	if m.VerbTests {
-		result += fmtc.Sprintf("--%s ", getOptionName(OPT_VERB_TESTS))
+		result += fmt.Sprintf("--%s ", getOptionName(OPT_VERB_TESTS))
 	}
 
 	if m.Race {
-		result += fmtc.Sprintf("--%s ", getOptionName(OPT_RACE))
+		result += fmt.Sprintf("--%s ", getOptionName(OPT_RACE))
 	}
 
 	if options.GetS(OPT_OUTPUT) != "Makefile" {
-		result += fmtc.Sprintf(
+		result += fmt.Sprintf(
 			"--%s %s ",
 			getOptionName(OPT_OUTPUT),
 			options.GetS(OPT_OUTPUT),
