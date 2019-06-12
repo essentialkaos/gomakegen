@@ -671,6 +671,8 @@ func (m *Makefile) getTargets() string {
 	return result
 }
 
+// codebeat:disable[ABC]
+
 // getPhony returns PHONY part of makefile
 func (m *Makefile) getPhony() string {
 	phony := []string{"fmt"}
@@ -723,6 +725,8 @@ func (m *Makefile) getPhony() string {
 
 	return ".PHONY = " + strings.Join(phony, " ") + "\n"
 }
+
+// codebeat:enable[ABC]
 
 // getDefaultGoal returns DEFAULT_GOAL part of makefile
 func (m *Makefile) getDefaultGoal() string {
