@@ -170,31 +170,15 @@ func process(dir string) {
 	sources := fsutil.ListAllFiles(
 		dir, true,
 		fsutil.ListingFilter{
-			MatchPatterns: []string{"*.go"},
-			SizeGreater:   1,
+			MatchPatterns:    []string{"*.go"},
+			NotMatchPatterns: []string{"vendor/*"}, // Ignore vendor directory
+			SizeGreater:      1,                    // Ignore empty files
 		},
 	)
-
-	sources = filterSources(sources)
 
 	makefile := generateMakefile(sources, dir)
 
 	exportMakefile(makefile)
-}
-
-// filterSources filter source files
-func filterSources(sources []string) []string {
-	var result []string
-
-	for _, source := range sources {
-		if strings.HasPrefix(source, "vendor/") {
-			continue
-		}
-
-		result = append(result, source)
-	}
-
-	return result
 }
 
 // exportMakefile renders makefile and write data to file
