@@ -37,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.1.0"
+	VER  = "1.1.1"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -860,16 +860,24 @@ func (m *Makefile) getTestDepsTarget() string {
 		return ""
 	}
 
+	pkgMngUsed := m.DepUsed || m.GlideUsed || m.ModUsed
+
 	result := "deps-test: "
 
 	if m.HasStableImports {
 		result += "git-config "
 	}
 
+	if pkgMngUsed {
+		result += "git-config deps"
+	}
+
 	result += "## Download dependencies for tests\n"
 
-	for _, pkg := range m.TestImports {
-		result += "\tgo get -d -v " + pkg + "\n"
+	if !pkgMngUsed {
+		for _, pkg := range m.TestImports {
+			result += "\tgo get -d -v " + pkg + "\n"
+		}
 	}
 
 	return result + "\n"
