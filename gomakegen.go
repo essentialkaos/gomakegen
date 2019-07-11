@@ -869,7 +869,7 @@ func (m *Makefile) getTestDepsTarget() string {
 	}
 
 	if pkgMngUsed {
-		result += "git-config deps"
+		result += "deps "
 	}
 
 	result += "## Download dependencies for tests\n"
