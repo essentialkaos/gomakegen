@@ -37,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.1.2"
+	VER  = "1.2.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -896,20 +896,19 @@ func (m *Makefile) getTestTarget() string {
 	}
 
 	result := "test: ## Run tests\n"
-
-	if m.Race {
-		if m.VerbTests {
-			result += "\tgo test -v -race " + targets + "\n"
-		} else {
-			result += "\tgo test -race " + targets + "\n"
-		}
-	}
+	result += "\tgo test"
 
 	if m.VerbTests {
-		result += "\tgo test -v -covermode=count " + targets + "\n"
-	} else {
-		result += "\tgo test -covermode=count " + targets + "\n"
+		result += " -v"
 	}
+
+	if m.Race {
+		result += " -race -covermode=atomic"
+	} else {
+		result += " -covermode=count"
+	}
+
+	result += " " + targets + "\n"
 
 	return result + "\n"
 }
