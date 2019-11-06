@@ -37,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.2.0"
+	VER  = "1.3.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -677,6 +677,7 @@ func (m *Makefile) getTargets() string {
 	result += m.getDepTarget()
 	result += m.getModTarget()
 	result += m.getFmtTarget()
+	result += m.getVetTarget()
 	result += m.getMetalinterTarget()
 	result += m.getCleanTarget()
 	result += m.getHelpTarget()
@@ -690,7 +691,7 @@ func (m *Makefile) getTargets() string {
 
 // getPhony returns PHONY part of makefile
 func (m *Makefile) getPhony() string {
-	phony := []string{"fmt"}
+	phony := []string{"fmt", "vet"}
 
 	if len(m.Binaries) != 0 {
 		phony = append(phony, "all", "clean")
@@ -957,6 +958,14 @@ func (m *Makefile) getBenchTarget() string {
 func (m *Makefile) getFmtTarget() string {
 	result := "fmt: ## Format source code with gofmt\n"
 	result += "\tfind . -name \"*.go\" -exec gofmt -s -w {} \\;\n"
+
+	return result + "\n"
+}
+
+// getVetTarget generates target for "vet" command
+func (m *Makefile) getVetTarget() string {
+	result := "vet: ## Runs go vet over sources\n"
+	result += "\tgo vet -composites=false -printfuncs=LPrintf,TLPrintf,TPrintf,log.Debug,log.Info,log.Warn,log.Error,log.Critical,log.Print ./...\n"
 
 	return result + "\n"
 }
