@@ -23,7 +23,7 @@ Before the initial install, allow git to use redirects for [pkg.re](https://gith
 git config --global http.https://pkg.re.followRedirects true
 ```
 
-To build the `gomakegen` from scratch, make sure you have a working Go 1.8+ workspace (_[instructions](https://golang.org/doc/install)_), then:
+To build the `gomakegen` from scratch, make sure you have a working Go 1.12+ workspace (_[instructions](https://golang.org/doc/install)_), then:
 
 ```
 go get github.com/essentialkaos/gomakegen
