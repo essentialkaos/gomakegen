@@ -2,6 +2,7 @@
 
 <p align="center">
   <a href="https://travis-ci.com/essentialkaos/gomakegen"><img src="https://travis-ci.com/essentialkaos/gomakegen.svg"></a>
+  <a href="https://github.com/essentialkaos/gomakegen/actions?query=workflow%3ACodeQL"><img src="https://github.com/essentialkaos/gomakegen/workflows/CodeQL/badge.svg" /></a>
   <a href="https://goreportcard.com/report/github.com/essentialkaos/gomakegen"><img src="https://goreportcard.com/badge/github.com/essentialkaos/gomakegen"></a>
   <a href="https://codebeat.co/projects/github-com-essentialkaos-gomakegen-master"><img alt="codebeat badge" src="https://codebeat.co/badges/6f7a19c8-d78d-4062-a8cf-fdac4b8d1f85" /></a>
   <a href="https://essentialkaos.com/ekol"><img src="https://gh.kaos.st/ekol.svg"></a>
