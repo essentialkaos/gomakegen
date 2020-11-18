@@ -6,15 +6,14 @@ on:
   pull_request:
     branches: [master]
 
-defaults:
-  run:
-    working-directory: src/github.com/${{ github.repository }}
-
 jobs:
   Go:
     name: Go
     runs-on: ubuntu-latest
-    
+
+    env:
+      SRC_DIR: src/github.com/${{ github.repository }}
+
     strategy:
       matrix:
         go: [ '1.13.x', '1.14.x', '1.15.x' ]
@@ -35,13 +34,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          path: src/github.com/${{ github.repository }}
+          path: ${{env.SRC_DIR}}
 
       - name: Download dependencies
+        working-directory: ${{env.SRC_DIR}}
         run: make deps
 
       - name: Build binary
+        working-directory: ${{env.SRC_DIR}}
         run: make all
 
       - name: Run tests
+        working-directory: ${{env.SRC_DIR}}
         run: bash .scripts/script.sh
