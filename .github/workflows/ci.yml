@@ -6,12 +6,9 @@ on:
   pull_request:
     branches: [master]
 
-env:
-  SRC_DIR: src/github.com/${{ github.repository }}
-
 defaults:
   run:
-    working-directory: ${{env.SRC_DIR}}
+    working-directory: src/github.com/${{ github.repository }}
 
 jobs:
   Go:
@@ -38,7 +35,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          path: ${{env.SRC_DIR}}
+          path: src/github.com/${{ github.repository }}
 
       - name: Download dependencies
         run: make deps
