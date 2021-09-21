@@ -1,10 +1,10 @@
 <p align="center"><a href="#readme"><img src="https://gh.kaos.st/gomakegen.svg"/></a></p>
 
 <p align="center">
-  <a href="https://github.com/essentialkaos/gomakegen/actions"><img src="https://github.com/essentialkaos/gomakegen/workflows/CI/badge.svg" alt="GitHub Actions Status" /></a>
-  <a href="https://github.com/essentialkaos/gomakegen/actions?query=workflow%3ACodeQL"><img src="https://github.com/essentialkaos/gomakegen/workflows/CodeQL/badge.svg" /></a>
-  <a href="https://goreportcard.com/report/github.com/essentialkaos/gomakegen"><img src="https://goreportcard.com/badge/github.com/essentialkaos/gomakegen"></a>
-  <a href="https://codebeat.co/projects/github-com-essentialkaos-gomakegen-master"><img alt="codebeat badge" src="https://codebeat.co/badges/6f7a19c8-d78d-4062-a8cf-fdac4b8d1f85" /></a>
+  <a href="https://kaos.sh/w/gomakegen/ci"><img src="https://kaos.sh/w/gomakegen/ci.svg" alt="GitHub Actions CI Status" /></a>
+  <a href="https://kaos.sh/w/gomakegen/codeql"><img src="https://kaos.sh/w/gomakegen/codeql.svg" alt="GitHub Actions CodeQL Status" /></a>
+  <a href="https://kaos.sh/r/gomakegen"><img src="https://kaos.sh/r/gomakegen.svg" alt="GoReportCard" /></a>
+  <a href="https://kaos.sh/b/gomakegen"><img src="https://kaos.sh/b/6f7a19c8-d78d-4062-a8cf-fdac4b8d1f85.svg" alt="Codebeat badge" /></a>
   <a href="#license"><img src="https://gh.kaos.st/apache2.svg"></a>
 </p>
 
@@ -16,7 +16,7 @@
 
 ### Installation
 
-To build the `gomakegen` from scratch, make sure you have a working Go 1.14+ workspace (_[instructions](https://golang.org/doc/install)_), then:
+To build the `gomakegen` from scratch, make sure you have a working Go 1.16+ workspace (_[instructions](https://golang.org/doc/install)_), then:
 
 ```
 go get github.com/essentialkaos/gomakegen
@@ -30,7 +30,7 @@ go get -u github.com/essentialkaos/gomakegen
 
 #### Prebuilt binaries
 
-You can download prebuilt binaries for Linux and OS X from [EK Apps Repository](https://apps.kaos.st/gomakegen/latest):
+You can download prebuilt binaries for Linux and macOS from [EK Apps Repository](https://apps.kaos.st/gomakegen/latest):
 
 ```bash
 bash <(curl -fsSL https://apps.kaos.st/get) gomakegen
@@ -73,8 +73,8 @@ Examples
 
 | Branch | Status |
 |--------|--------|
-| `master` | [![CI](https://github.com/essentialkaos/gomakegen/workflows/CI/badge.svg?branch=master)](https://github.com/essentialkaos/gomakegen/actions) |
-| `develop` | [![CI](https://github.com/essentialkaos/gomakegen/workflows/CI/badge.svg?branch=develop)](https://github.com/essentialkaos/gomakegen/actions) |
+| `master` | [![CI](https://kaos.sh/w/gomakegen/ci.svg?branch=master)](https://kaos.sh/w/gomakegen/ci?query=branch:master) |
+| `develop` | [![CI](https://kaos.sh/w/gomakegen/ci.svg?branch=master)](https://kaos.sh/w/gomakegen/ci?query=branch:develop) |
 
 ### Contributing
 
