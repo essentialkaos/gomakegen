@@ -37,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.3.2"
+	VER  = "1.4.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -1040,6 +1040,9 @@ func (m *Makefile) getModTarget() string {
 
 	result += "mod-update: ## Download modules to local cache\n"
 	result += "\tgo mod download\n\n"
+
+	result += "mod-vendor: ## Make vendored copy of dependencies\n"
+	result += "\tgo mod vendor\n\n"
 
 	return result
 }
