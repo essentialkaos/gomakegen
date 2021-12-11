@@ -839,7 +839,7 @@ func (m *Makefile) getDepsTarget() string {
 	case m.DepUsed:
 		result += "dep-update "
 	case m.ModUsed:
-		result += "mod-download "
+		result += "mod-update "
 	}
 
 	result += "## Download dependencies\n"
