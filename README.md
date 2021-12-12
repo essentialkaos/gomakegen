@@ -19,13 +19,7 @@
 To build the `gomakegen` from scratch, make sure you have a working Go 1.16+ workspace (_[instructions](https://golang.org/doc/install)_), then:
 
 ```
-go get github.com/essentialkaos/gomakegen
-```
-
-If you want to update `gomakegen` to latest stable release, do:
-
-```
-go get -u github.com/essentialkaos/gomakegen
+go install github.com/essentialkaos/gomakegen@latest
 ```
 
 #### Prebuilt binaries
