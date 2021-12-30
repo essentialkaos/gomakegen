@@ -37,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.4.0"
+	VER  = "1.4.1"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -1036,7 +1036,8 @@ func (m *Makefile) getModTarget() string {
 	}
 
 	result := "mod-init: ## Initialize new module\n"
-	result += "\tgo mod init\n\n"
+	result += "\tgo mod init\n"
+	result += "\tgo mod tidy\n\n"
 
 	result += "mod-update: ## Download modules to local cache\n"
 	result += "\tgo mod download\n\n"
