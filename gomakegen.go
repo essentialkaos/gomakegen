@@ -37,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.4.1"
+	VER  = "1.5.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -527,27 +527,6 @@ func containsStableImports(imports []string) bool {
 	return false
 }
 
-// getGitConfigurationForStableImports returns slice with git configuration commands for
-// stable import services
-func getGitConfigurationForStableImports(imports []string) []string {
-	var hasGopkg, hasPkgre bool
-	var result []string
-
-	for _, pkg := range imports {
-		if strings.HasPrefix(pkg, "pkg.re") && !hasPkgre {
-			result = append(result, "git config --global http.https://pkg.re.followRedirects true")
-			hasPkgre = true
-		}
-
-		if strings.HasPrefix(pkg, "gopkg.in") && !hasGopkg {
-			result = append(result, "git config --global http.https://gopkg.in.followRedirects true")
-			hasGopkg = true
-		}
-	}
-
-	return result
-}
-
 // applyOptionsFromFile reads used options from previously generated Makefile
 // and applies it to makefile struct
 func applyOptionsFromMakefile(file string, m *Makefile) {
@@ -667,7 +646,6 @@ func (m *Makefile) getTargets() string {
 	result += m.getBinTarget()
 	result += m.getInstallTarget()
 	result += m.getUninstallTarget()
-	result += m.getGitConfigTarget()
 	result += m.getDepsTarget()
 	result += m.getTestDepsTarget()
 	result += m.getTestTarget()
@@ -695,10 +673,6 @@ func (m *Makefile) getPhony() string {
 
 	if len(m.Binaries) != 0 {
 		phony = append(phony, "all", "clean")
-	}
-
-	if m.HasStableImports {
-		phony = append(phony, "git-config")
 	}
 
 	if len(m.BaseImports) != 0 {
@@ -803,24 +777,6 @@ func (m *Makefile) getUninstallTarget() string {
 	return result + "\n"
 }
 
-// getGitConfigTarget generates target for "git-config" command
-func (m *Makefile) getGitConfigTarget() string {
-	if !m.HasStableImports {
-		return ""
-	}
-
-	imports := append(m.BaseImports[:0:0], m.BaseImports...)
-	imports = append(imports, m.TestImports...)
-
-	result := "git-config: ## Configure git redirects for stable import path services\n"
-
-	for _, gitCommand := range getGitConfigurationForStableImports(imports) {
-		result += "\t" + gitCommand + "\n"
-	}
-
-	return result + "\n"
-}
-
 // getDepsTarget generates target for "deps" command
 func (m *Makefile) getDepsTarget() string {
 	if len(m.BaseImports) == 0 {
@@ -828,10 +784,6 @@ func (m *Makefile) getDepsTarget() string {
 	}
 
 	result := "deps: "
-
-	if m.HasStableImports {
-		result += "git-config "
-	}
 
 	switch {
 	case m.GlideUsed:
@@ -867,10 +819,6 @@ func (m *Makefile) getTestDepsTarget() string {
 
 	if pkgMngUsed {
 		result += "deps "
-	} else {
-		if m.HasStableImports {
-			result += "git-config "
-		}
 	}
 
 	result += "## Download dependencies for tests\n"
