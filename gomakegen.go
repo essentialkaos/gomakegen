@@ -37,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.5.0"
+	VER  = "1.5.1"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -780,6 +780,10 @@ func (m *Makefile) getUninstallTarget() string {
 // getDepsTarget generates target for "deps" command
 func (m *Makefile) getDepsTarget() string {
 	if len(m.BaseImports) == 0 {
+		if m.ModUsed {
+			return "deps: mod-update ## Download dependencies\n\n"
+		}
+
 		return ""
 	}
 
