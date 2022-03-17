@@ -24,7 +24,7 @@ uninstall: ## Uninstall all binaries
 	rm -f /usr/bin/gomakegen
 
 deps: ## Download dependencies
-	go get -d -v pkg.re/essentialkaos/ek.v12
+	go get -d -v github.com/essentialkaos/ek
 
 fmt: ## Format source code with gofmt
 	find . -name "*.go" -exec gofmt -s -w {} \;

@@ -21,15 +21,15 @@ import (
 	"go/parser"
 	"go/token"
 
-	"pkg.re/essentialkaos/ek.v12/fmtc"
-	"pkg.re/essentialkaos/ek.v12/fsutil"
-	"pkg.re/essentialkaos/ek.v12/mathutil"
-	"pkg.re/essentialkaos/ek.v12/options"
-	"pkg.re/essentialkaos/ek.v12/path"
-	"pkg.re/essentialkaos/ek.v12/sliceutil"
-	"pkg.re/essentialkaos/ek.v12/strutil"
-	"pkg.re/essentialkaos/ek.v12/usage"
-	"pkg.re/essentialkaos/ek.v12/usage/update"
+	"github.com/essentialkaos/ek/fmtc"
+	"github.com/essentialkaos/ek/fsutil"
+	"github.com/essentialkaos/ek/mathutil"
+	"github.com/essentialkaos/ek/options"
+	"github.com/essentialkaos/ek/path"
+	"github.com/essentialkaos/ek/sliceutil"
+	"github.com/essentialkaos/ek/strutil"
+	"github.com/essentialkaos/ek/usage"
+	"github.com/essentialkaos/ek/usage/update"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -110,8 +110,8 @@ var optMap = options.Map{
 // Paths for check package
 var checkPackageImports = []string{
 	"github.com/go-check/check",
+	"github.com/essentialkaos/check",
 	"gopkg.in/check.v1",
-	"pkg.re/check.v1",
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
