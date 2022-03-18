@@ -675,7 +675,7 @@ func (m *Makefile) getPhony() string {
 		phony = append(phony, "all", "clean")
 	}
 
-	if len(m.BaseImports) != 0 {
+	if len(m.BaseImports) != 0 || m.ModUsed {
 		phony = append(phony, "deps")
 	}
 
@@ -696,7 +696,7 @@ func (m *Makefile) getPhony() string {
 	}
 
 	if m.ModUsed {
-		phony = append(phony, "mod-init", "mod-update")
+		phony = append(phony, "mod-init", "mod-update", "mod-vendor")
 	}
 
 	if m.Benchmark {
