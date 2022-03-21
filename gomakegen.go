@@ -21,15 +21,15 @@ import (
 	"go/parser"
 	"go/token"
 
-	"pkg.re/essentialkaos/ek.v12/fmtc"
-	"pkg.re/essentialkaos/ek.v12/fsutil"
-	"pkg.re/essentialkaos/ek.v12/mathutil"
-	"pkg.re/essentialkaos/ek.v12/options"
-	"pkg.re/essentialkaos/ek.v12/path"
-	"pkg.re/essentialkaos/ek.v12/sliceutil"
-	"pkg.re/essentialkaos/ek.v12/strutil"
-	"pkg.re/essentialkaos/ek.v12/usage"
-	"pkg.re/essentialkaos/ek.v12/usage/update"
+	"github.com/essentialkaos/ek/fmtc"
+	"github.com/essentialkaos/ek/fsutil"
+	"github.com/essentialkaos/ek/mathutil"
+	"github.com/essentialkaos/ek/options"
+	"github.com/essentialkaos/ek/path"
+	"github.com/essentialkaos/ek/sliceutil"
+	"github.com/essentialkaos/ek/strutil"
+	"github.com/essentialkaos/ek/usage"
+	"github.com/essentialkaos/ek/usage/update"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -37,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.5.0"
+	VER  = "1.5.1"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -110,8 +110,8 @@ var optMap = options.Map{
 // Paths for check package
 var checkPackageImports = []string{
 	"github.com/go-check/check",
+	"github.com/essentialkaos/check",
 	"gopkg.in/check.v1",
-	"pkg.re/check.v1",
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -675,7 +675,7 @@ func (m *Makefile) getPhony() string {
 		phony = append(phony, "all", "clean")
 	}
 
-	if len(m.BaseImports) != 0 {
+	if len(m.BaseImports) != 0 || m.ModUsed {
 		phony = append(phony, "deps")
 	}
 
@@ -696,7 +696,7 @@ func (m *Makefile) getPhony() string {
 	}
 
 	if m.ModUsed {
-		phony = append(phony, "mod-init", "mod-update")
+		phony = append(phony, "mod-init", "mod-update", "mod-vendor")
 	}
 
 	if m.Benchmark {
@@ -780,6 +780,10 @@ func (m *Makefile) getUninstallTarget() string {
 // getDepsTarget generates target for "deps" command
 func (m *Makefile) getDepsTarget() string {
 	if len(m.BaseImports) == 0 {
+		if m.ModUsed {
+			return "deps: mod-update ## Download dependencies\n\n"
+		}
+
 		return ""
 	}
 
