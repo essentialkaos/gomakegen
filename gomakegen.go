@@ -2,7 +2,7 @@ package main
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 //                                                                                    //
-//                         Copyright (c) 2021 ESSENTIAL KAOS                          //
+//                         Copyright (c) 2022 ESSENTIAL KAOS                          //
 //      Apache License, Version 2.0 <https://www.apache.org/licenses/LICENSE-2.0>     //
 //                                                                                    //
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -37,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.5.1"
+	VER  = "1.6.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -696,7 +696,7 @@ func (m *Makefile) getPhony() string {
 	}
 
 	if m.ModUsed {
-		phony = append(phony, "mod-init", "mod-update", "mod-vendor")
+		phony = append(phony, "mod-init", "mod-update", "mod-download", "mod-vendor")
 	}
 
 	if m.Benchmark {
@@ -991,7 +991,11 @@ func (m *Makefile) getModTarget() string {
 	result += "\tgo mod init\n"
 	result += "\tgo mod tidy\n\n"
 
-	result += "mod-update: ## Download modules to local cache\n"
+	result += "mod-update: ## Update modules to their latest versions\n"
+	result += "\tgo get -u\n"
+	result += "\tgo mod tidy\n\n"
+
+	result += "mod-download: ## Download modules to local cache\n"
 	result += "\tgo mod download\n\n"
 
 	result += "mod-vendor: ## Make vendored copy of dependencies\n"
