@@ -37,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.6.0"
+	VER  = "1.6.1"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -795,7 +795,7 @@ func (m *Makefile) getDepsTarget() string {
 	case m.DepUsed:
 		result += "dep-update "
 	case m.ModUsed:
-		result += "mod-update "
+		result += "mod-download "
 	}
 
 	result += "## Download dependencies\n"
