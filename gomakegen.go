@@ -37,23 +37,22 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.7.0"
+	VER  = "2.0.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
 // Constants with options names
 const (
-	OPT_OUTPUT     = "o:output"
-	OPT_GLIDE      = "g:glide"
-	OPT_DEP        = "d:dep"
-	OPT_MOD        = "m:mod"
-	OPT_METALINTER = "M:metalinter"
-	OPT_STRIP      = "S:strip"
-	OPT_BENCHMARK  = "B:benchmark"
-	OPT_RACE       = "R:race"
-	OPT_NO_COLOR   = "nc:no-color"
-	OPT_HELP       = "h:help"
-	OPT_VER        = "v:version"
+	OPT_OUTPUT    = "o:output"
+	OPT_GLIDE     = "g:glide"
+	OPT_DEP       = "d:dep"
+	OPT_MOD       = "m:mod"
+	OPT_STRIP     = "S:strip"
+	OPT_BENCHMARK = "B:benchmark"
+	OPT_RACE      = "R:race"
+	OPT_NO_COLOR  = "nc:no-color"
+	OPT_HELP      = "h:help"
+	OPT_VER       = "v:version"
 )
 
 // SEPARATOR_SIZE is default separator size
@@ -77,7 +76,6 @@ type Makefile struct {
 	HasTests         bool
 	Benchmark        bool
 	Race             bool
-	Metalinter       bool
 	Strip            bool
 	HasSubpackages   bool
 	HasStableImports bool
@@ -91,17 +89,16 @@ type Makefile struct {
 
 // Options map
 var optMap = options.Map{
-	OPT_OUTPUT:     {Value: "Makefile"},
-	OPT_GLIDE:      {Type: options.BOOL},
-	OPT_DEP:        {Type: options.BOOL},
-	OPT_MOD:        {Type: options.BOOL},
-	OPT_METALINTER: {Type: options.BOOL},
-	OPT_STRIP:      {Type: options.BOOL},
-	OPT_BENCHMARK:  {Type: options.BOOL},
-	OPT_RACE:       {Type: options.BOOL},
-	OPT_NO_COLOR:   {Type: options.BOOL},
-	OPT_HELP:       {Type: options.BOOL, Alias: "u:usage"},
-	OPT_VER:        {Type: options.BOOL, Alias: "ver"},
+	OPT_OUTPUT:    {Value: "Makefile"},
+	OPT_GLIDE:     {Type: options.BOOL},
+	OPT_DEP:       {Type: options.BOOL},
+	OPT_MOD:       {Type: options.BOOL},
+	OPT_STRIP:     {Type: options.BOOL},
+	OPT_BENCHMARK: {Type: options.BOOL},
+	OPT_RACE:      {Type: options.BOOL},
+	OPT_NO_COLOR:  {Type: options.BOOL},
+	OPT_HELP:      {Type: options.BOOL, Alias: "u:usage"},
+	OPT_VER:       {Type: options.BOOL, Alias: "ver"},
 }
 
 // Paths for check package
@@ -142,7 +139,7 @@ func main() {
 		return
 	}
 
-	dir := args[0]
+	dir := args.Get(0)
 
 	checkDir(dir)
 	process(dir)
@@ -215,7 +212,6 @@ func generateMakefile(sources []string, dir string) *Makefile {
 
 	applyOptionsFromMakefile(dir+"/"+options.GetS(OPT_OUTPUT), makefile)
 
-	makefile.Metalinter = makefile.Metalinter || options.GetB(OPT_METALINTER)
 	makefile.Benchmark = makefile.Benchmark || options.GetB(OPT_BENCHMARK)
 	makefile.Race = makefile.Race || options.GetB(OPT_RACE)
 	makefile.Strip = makefile.Strip || options.GetB(OPT_STRIP)
@@ -542,8 +538,6 @@ func applyOptionsFromMakefile(file string, m *Makefile) {
 			m.GlideUsed = true
 		case getOptionName(OPT_DEP):
 			m.DepUsed = true
-		case getOptionName(OPT_METALINTER):
-			m.Metalinter = true
 		case getOptionName(OPT_STRIP):
 			m.Strip = true
 		case getOptionName(OPT_BENCHMARK):
@@ -648,7 +642,6 @@ func (m *Makefile) getTargets() string {
 	result += m.getModTarget()
 	result += m.getFmtTarget()
 	result += m.getVetTarget()
-	result += m.getMetalinterTarget()
 	result += m.getCleanTarget()
 	result += m.getHelpTarget()
 
@@ -695,10 +688,6 @@ func (m *Makefile) getPhony() string {
 		phony = append(phony, "benchmark")
 	}
 
-	if m.Metalinter {
-		phony = append(phony, "metalinter")
-	}
-
 	phony = append(phony, "help")
 
 	for _, target := range append(phony, m.Binaries...) {
@@ -728,9 +717,9 @@ func (m *Makefile) getBinTarget() string {
 		result += bin + ": ## " + fmt.Sprintf("Build %s binary", bin) + "\n"
 
 		if m.Strip {
-			result += "\tgo build -ldflags=\"-s -w\" " + bin + ".go\n"
+			result += "\tgo build $(VERBOSE_FLAG) -ldflags=\"-s -w\" " + bin + ".go\n"
 		} else {
-			result += "\tgo build " + bin + ".go\n"
+			result += "\tgo build $(VERBOSE_FLAG) " + bin + ".go\n"
 		}
 
 		result += "\n"
@@ -993,19 +982,19 @@ func (m *Makefile) getModTarget() string {
 	}
 
 	result := "mod-init: ## Initialize new module\n"
-	result += "ifdef MODULE_PATH ## Module path for initialization\n"
+	result += "ifdef MODULE_PATH ## Module path for initialization (String)\n"
 	result += "\tgo mod init $(MODULE_PATH)\n"
 	result += "else\n"
 	result += "\tgo mod init\n"
 	result += "endif\n\n"
-	result += "ifdef COMPAT ## Compatible Go version\n"
+	result += "ifdef COMPAT ## Compatible Go version (String)\n"
 	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)\n"
 	result += "else\n"
 	result += "\tgo mod tidy $(VERBOSE_FLAG)\n"
 	result += "endif\n\n"
 
 	result += "mod-update: ## Update modules to their latest versions\n"
-	result += "ifdef UPDATE_ALL ## Update all dependencies\n"
+	result += "ifdef UPDATE_ALL ## Update all dependencies (Flag)\n"
 	result += "\tgo get -u $(VERBOSE_FLAG) all\n"
 	result += "else\n"
 	result += "\tgo get -u $(VERBOSE_FLAG)\n"
@@ -1022,19 +1011,6 @@ func (m *Makefile) getModTarget() string {
 
 	result += "mod-vendor: ## Make vendored copy of dependencies\n"
 	result += "\tgo mod vendor $(VERBOSE_FLAG)\n\n"
-
-	return result
-}
-
-// getMetalinterTarget generates target for "metalineter" command
-func (m *Makefile) getMetalinterTarget() string {
-	if !m.Metalinter {
-		return ""
-	}
-
-	result := "metalinter: ## Install and run gometalinter\n"
-	result += "\ttest -s $(GOPATH)/bin/gometalinter || (go get -u github.com/alecthomas/gometalinter ; $(GOPATH)/bin/gometalinter --install)\n"
-	result += "\t$(GOPATH)/bin/gometalinter --deadline 30s\n\n"
 
 	return result
 }
@@ -1075,10 +1051,6 @@ func (m *Makefile) getGenerationComment() string {
 		result += fmt.Sprintf("--%s ", getOptionName(OPT_MOD))
 	}
 
-	if m.Metalinter {
-		result += fmt.Sprintf("--%s ", getOptionName(OPT_METALINTER))
-	}
-
 	if m.Strip {
 		result += fmt.Sprintf("--%s ", getOptionName(OPT_STRIP))
 	}
@@ -1114,7 +1086,7 @@ func (m *Makefile) getDefaultVariables() string {
 		result += "export GO111MODULE=on\n\n"
 	}
 
-	result += "ifdef VERBOSE ## Print verbose information\n"
+	result += "ifdef VERBOSE ## Print verbose information (Flag)\n"
 	result += "VERBOSE_FLAG = -v\n"
 	result += "endif\n\n"
 
@@ -1142,7 +1114,6 @@ func showUsage() {
 	info.AddOption(OPT_GLIDE, "Add target to fetching dependencies with glide")
 	info.AddOption(OPT_DEP, "Add target to fetching dependencies with dep")
 	info.AddOption(OPT_MOD, "Add target to fetching dependencies with go mod")
-	info.AddOption(OPT_METALINTER, "Add target with metalinter check")
 	info.AddOption(OPT_STRIP, "Strip binaries")
 	info.AddOption(OPT_BENCHMARK, "Add target to run benchmarks")
 	info.AddOption(OPT_RACE, "Add target to test race conditions")
