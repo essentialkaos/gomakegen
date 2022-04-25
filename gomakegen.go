@@ -1004,7 +1004,7 @@ func (m *Makefile) getModTarget() string {
 	result += "else\n"
 	result += "\tgo mod tidy $(VERBOSE_FLAG)\n"
 	result += "endif\n\n"
-	result += "test -d vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
+	result += "\ttest -d vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
 
 	result += "mod-download: ## Download modules to local cache\n"
 	result += "\tgo mod download\n\n"
@@ -1023,8 +1023,7 @@ func (m *Makefile) getHelpTarget() string {
 	result += "\t@echo -e '\\n\\033[1mTargets:\\033[0m\\n'\n"
 	result += "\t@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \\\n"
 	result += "\t\t| awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \\033[33m%-" + fmtSize + "s\\033[0m %s\\n\", $$1, $$2}'\n"
-	result += "\t@echo -e ''\n"
-	result += "\t@echo -e '\033[1mVariables:\033[0m\\n'\n"
+	result += "\t@echo -e '\\n\\033[1mVariables:\033[0m\\n'\n"
 	result += "\t@grep -E '^ifdef [A-Z_]+ .*?## .*$$' $(abspath $(lastword $(MAKEFILE_LIST))) \\\n"
 	result += "\t\t| sed 's/ifdef //' \\\n"
 	result += "\t\t| awk 'BEGIN {FS = \" .*?## \"}; {printf \"  \033[32m%-14s\033[0m %s\\n\", $$1, $$2}'\n"

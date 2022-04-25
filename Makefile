@@ -48,8 +48,7 @@ help: ## Show this info
 	@echo -e '\n\033[1mTargets:\033[0m\n'
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[33m%-11s\033[0m %s\n", $$1, $$2}'
-	@echo -e ''
-	@echo -e '[1mVariables:[0m\n'
+	@echo -e '\n\033[1mVariables:[0m\n'
 	@grep -E '^ifdef [A-Z_]+ .*?## .*$$' $(abspath $(lastword $(MAKEFILE_LIST))) \
 		| sed 's/ifdef //' \
 		| awk 'BEGIN {FS = " .*?## "}; {printf "  [32m%-14s[0m %s\n", $$1, $$2}'
