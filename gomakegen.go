@@ -804,7 +804,7 @@ func (m *Makefile) getUpdateTarget() string {
 	}
 
 	result := "update: ## Update dependencies to the latest versions\n"
-	result += "\tgo get -d -u $(VERBOSE_FLAG)\n\n"
+	result += "\tgo get -d -u $(VERBOSE_FLAG) ./...\n\n"
 
 	return result
 }
@@ -997,7 +997,7 @@ func (m *Makefile) getModTarget() string {
 	result += "ifdef UPDATE_ALL ## Update all dependencies (Flag)\n"
 	result += "\tgo get -u $(VERBOSE_FLAG) all\n"
 	result += "else\n"
-	result += "\tgo get -u $(VERBOSE_FLAG)\n"
+	result += "\tgo get -u $(VERBOSE_FLAG) ./...\n"
 	result += "endif\n\n"
 	result += "ifdef COMPAT\n"
 	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)\n"
