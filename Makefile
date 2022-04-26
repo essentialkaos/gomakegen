@@ -33,7 +33,7 @@ deps: ## Download dependencies
 	go get -d $(VERBOSE_FLAG) github.com/essentialkaos/ek
 
 update: ## Update dependencies to the latest versions
-	go get -d -u $(VERBOSE_FLAG)
+	go get -d -u $(VERBOSE_FLAG) ./...
 
 fmt: ## Format source code with gofmt
 	find . -name "*.go" -exec gofmt -s -w {} \;
