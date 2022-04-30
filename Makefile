@@ -20,7 +20,7 @@ endif
 
 all: gomakegen ## Build all binaries
 
-gomakegen: ## Build gomakegen binary
+gomakegen:
 	go build $(VERBOSE_FLAG) -ldflags="-s -w" gomakegen.go
 
 install: ## Install all binaries

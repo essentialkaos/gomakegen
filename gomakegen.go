@@ -631,9 +631,11 @@ func (m *Makefile) getTargets() string {
 	result += m.getBinTarget()
 	result += m.getInstallTarget()
 	result += m.getUninstallTarget()
+	result += m.getInitTarget()
 	result += m.getDepsTarget()
-	result += m.getUpdateTarget()
 	result += m.getTestDepsTarget()
+	result += m.getUpdateTarget()
+	result += m.getVendorTarget()
 	result += m.getTestTarget()
 	result += m.getFuzzTarget()
 	result += m.getBenchTarget()
@@ -665,11 +667,23 @@ func (m *Makefile) getPhony() string {
 	}
 
 	if len(m.TestImports) != 0 {
-		phony = append(phony, "deps-test", "test")
+		phony = append(phony, "test")
+	}
+
+	if !m.GlideUsed && !m.DepUsed && !m.ModUsed {
+		if len(m.TestImports) != 0 {
+			phony = append(phony, "deps-test")
+		}
+	} else {
+		phony = append(phony, "init", "vendor")
 	}
 
 	if len(m.FuzzPaths) != 0 {
 		phony = append(phony, "gen-fuzz")
+	}
+
+	if m.Benchmark {
+		phony = append(phony, "benchmark")
 	}
 
 	if m.GlideUsed {
@@ -677,15 +691,11 @@ func (m *Makefile) getPhony() string {
 	}
 
 	if m.DepUsed {
-		phony = append(phony, "dep-init", "dep-update")
+		phony = append(phony, "dep-init", "dep-update", "dep-vendor")
 	}
 
 	if m.ModUsed {
 		phony = append(phony, "mod-init", "mod-update", "mod-download", "mod-vendor")
-	}
-
-	if m.Benchmark {
-		phony = append(phony, "benchmark")
 	}
 
 	phony = append(phony, "help")
@@ -714,7 +724,7 @@ func (m *Makefile) getBinTarget() string {
 	result := "all: " + strings.Join(m.Binaries, " ") + " ## Build all binaries\n\n"
 
 	for _, bin := range m.Binaries {
-		result += bin + ": ## " + fmt.Sprintf("Build %s binary", bin) + "\n"
+		result += bin + ":\n"
 
 		if m.Strip {
 			result += "\tgo build $(VERBOSE_FLAG) -ldflags=\"-s -w\" " + bin + ".go\n"
@@ -758,6 +768,20 @@ func (m *Makefile) getUninstallTarget() string {
 	return result + "\n"
 }
 
+// getInitTarget generates target for "init" command
+func (m *Makefile) getInitTarget() string {
+	switch {
+	case m.GlideUsed:
+		return "init: glide-update ## Initialize new workspace\n\n"
+	case m.DepUsed:
+		return "init: dep-vendor ## Initialize new workspace\n\n"
+	case m.ModUsed:
+		return "init: mod-init ## Initialize new module\n\n"
+	}
+
+	return ""
+}
+
 // getDepsTarget generates target for "deps" command
 func (m *Makefile) getDepsTarget() string {
 	if len(m.BaseImports) == 0 {
@@ -792,6 +816,20 @@ func (m *Makefile) getDepsTarget() string {
 	return result + "\n"
 }
 
+// getVendorTarget generates target for "vendor" command
+func (m *Makefile) getVendorTarget() string {
+	switch {
+	case m.GlideUsed:
+		return "vendor: glide-create ## Make vendored copy of dependencies\n\n"
+	case m.DepUsed:
+		return "vendor: dep-init ## Make vendored copy of dependencies\n\n"
+	case m.ModUsed:
+		return "vendor: mod-vendor ## Make vendored copy of dependencies\n\n"
+	}
+
+	return ""
+}
+
 // getUpdateTarget generates target for "update" command
 func (m *Makefile) getUpdateTarget() string {
 	switch {
@@ -817,12 +855,11 @@ func (m *Makefile) getTestDepsTarget() string {
 
 	pkgMngUsed := m.DepUsed || m.GlideUsed || m.ModUsed
 
-	result := "deps-test: "
-
 	if pkgMngUsed {
-		result += "deps "
+		return ""
 	}
 
+	result := "deps-test: "
 	result += "## Download dependencies for tests\n"
 
 	if !pkgMngUsed {
@@ -938,18 +975,18 @@ func (m *Makefile) getGlideTarget() string {
 		return ""
 	}
 
-	result := "glide-create: ## Initialize glide workspace\n"
+	result := "glide-create:\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\tglide init\n"
 	result += "\n"
 
-	result += "glide-install: ## Install packages and dependencies through glide\n"
+	result += "glide-install:\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\ttest -s glide.yaml || glide init\n"
 	result += "\tglide install\n"
 	result += "\n"
 
-	result += "glide-update: ## Update packages and dependencies through glide\n"
+	result += "glide-update:\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\ttest -s glide.yaml || glide init\n"
 	result += "\tglide update\n\n"
@@ -963,14 +1000,18 @@ func (m *Makefile) getDepTarget() string {
 		return ""
 	}
 
-	result := "dep-init: ## Initialize dep workspace\n"
+	result := "dep-init:\n"
 	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
 	result += "\tdep init\n\n"
 
-	result += "dep-update: ## Update packages and dependencies through dep\n"
+	result += "dep-update:\n"
 	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
 	result += "\ttest -s Gopkg.toml || dep init\n"
 	result += "\ttest -s Gopkg.lock && dep ensure -update || dep ensure\n\n"
+
+	result += "dep-vendor:\n"
+	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
+	result += "\tdep ensure\n\n"
 
 	return result
 }
@@ -981,7 +1022,7 @@ func (m *Makefile) getModTarget() string {
 		return ""
 	}
 
-	result := "mod-init: ## Initialize new module\n"
+	result := "mod-init:\n"
 	result += "ifdef MODULE_PATH ## Module path for initialization (String)\n"
 	result += "\tgo mod init $(MODULE_PATH)\n"
 	result += "else\n"
@@ -993,7 +1034,7 @@ func (m *Makefile) getModTarget() string {
 	result += "\tgo mod tidy $(VERBOSE_FLAG)\n"
 	result += "endif\n\n"
 
-	result += "mod-update: ## Update modules to their latest versions\n"
+	result += "mod-update:\n"
 	result += "ifdef UPDATE_ALL ## Update all dependencies (Flag)\n"
 	result += "\tgo get -u $(VERBOSE_FLAG) all\n"
 	result += "else\n"
@@ -1006,10 +1047,10 @@ func (m *Makefile) getModTarget() string {
 	result += "endif\n\n"
 	result += "\ttest -d vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
 
-	result += "mod-download: ## Download modules to local cache\n"
+	result += "mod-download:\n"
 	result += "\tgo mod download\n\n"
 
-	result += "mod-vendor: ## Make vendored copy of dependencies\n"
+	result += "mod-vendor:\n"
 	result += "\tgo mod vendor $(VERBOSE_FLAG)\n\n"
 
 	return result
