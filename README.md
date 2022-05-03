@@ -60,10 +60,9 @@ Examples
 
   gomakegen $GOPATH/src/github.com/profile/project -o project.make
   Generate makefile for github.com/profile/project and save as project.make
-
 ```
 
-### Build Status
+### CI Status
 
 | Branch | Status |
 |--------|--------|

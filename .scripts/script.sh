@@ -7,7 +7,7 @@ main() {
 
   mv Makefile Makefile2
 
-  ./gomakegen --metalinter --strip .
+  ./gomakegen --strip .
 
   [[ $? -ne 0 ]] && exit 1
 

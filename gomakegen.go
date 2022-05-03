@@ -37,24 +37,22 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "1.6.1"
+	VER  = "2.0.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
 // Constants with options names
 const (
-	OPT_OUTPUT     = "o:output"
-	OPT_GLIDE      = "g:glide"
-	OPT_DEP        = "d:dep"
-	OPT_MOD        = "m:mod"
-	OPT_METALINTER = "M:metalinter"
-	OPT_STRIP      = "S:strip"
-	OPT_BENCHMARK  = "B:benchmark"
-	OPT_RACE       = "R:race"
-	OPT_VERB_TESTS = "V:verbose"
-	OPT_NO_COLOR   = "nc:no-color"
-	OPT_HELP       = "h:help"
-	OPT_VER        = "v:version"
+	OPT_OUTPUT    = "o:output"
+	OPT_GLIDE     = "g:glide"
+	OPT_DEP       = "d:dep"
+	OPT_MOD       = "m:mod"
+	OPT_STRIP     = "S:strip"
+	OPT_BENCHMARK = "B:benchmark"
+	OPT_RACE      = "R:race"
+	OPT_NO_COLOR  = "nc:no-color"
+	OPT_HELP      = "h:help"
+	OPT_VER       = "v:version"
 )
 
 // SEPARATOR_SIZE is default separator size
@@ -77,9 +75,7 @@ type Makefile struct {
 
 	HasTests         bool
 	Benchmark        bool
-	VerbTests        bool
 	Race             bool
-	Metalinter       bool
 	Strip            bool
 	HasSubpackages   bool
 	HasStableImports bool
@@ -93,18 +89,16 @@ type Makefile struct {
 
 // Options map
 var optMap = options.Map{
-	OPT_OUTPUT:     {Value: "Makefile"},
-	OPT_GLIDE:      {Type: options.BOOL},
-	OPT_DEP:        {Type: options.BOOL},
-	OPT_MOD:        {Type: options.BOOL},
-	OPT_METALINTER: {Type: options.BOOL},
-	OPT_STRIP:      {Type: options.BOOL},
-	OPT_BENCHMARK:  {Type: options.BOOL},
-	OPT_VERB_TESTS: {Type: options.BOOL},
-	OPT_RACE:       {Type: options.BOOL},
-	OPT_NO_COLOR:   {Type: options.BOOL},
-	OPT_HELP:       {Type: options.BOOL, Alias: "u:usage"},
-	OPT_VER:        {Type: options.BOOL, Alias: "ver"},
+	OPT_OUTPUT:    {Value: "Makefile"},
+	OPT_GLIDE:     {Type: options.BOOL},
+	OPT_DEP:       {Type: options.BOOL},
+	OPT_MOD:       {Type: options.BOOL},
+	OPT_STRIP:     {Type: options.BOOL},
+	OPT_BENCHMARK: {Type: options.BOOL},
+	OPT_RACE:      {Type: options.BOOL},
+	OPT_NO_COLOR:  {Type: options.BOOL},
+	OPT_HELP:      {Type: options.BOOL, Alias: "u:usage"},
+	OPT_VER:       {Type: options.BOOL, Alias: "ver"},
 }
 
 // Paths for check package
@@ -145,7 +139,7 @@ func main() {
 		return
 	}
 
-	dir := args[0]
+	dir := args.Get(0).Clean().String()
 
 	checkDir(dir)
 	process(dir)
@@ -153,18 +147,10 @@ func main() {
 
 // checkDir checks directory with sources
 func checkDir(dir string) {
-	if !fsutil.IsExist(dir) {
-		printWarn("Directory %s does not exist", dir)
-		os.Exit(1)
-	}
+	err := fsutil.ValidatePerms("DRX", dir)
 
-	if !fsutil.IsReadable(dir) {
-		printWarn("Directory %s is not readable", dir)
-		os.Exit(1)
-	}
-
-	if !fsutil.IsExecutable(dir) {
-		printWarn("Directory %s is not executable", dir)
+	if err != nil {
+		printWarn(err.Error())
 		os.Exit(1)
 	}
 }
@@ -218,9 +204,7 @@ func generateMakefile(sources []string, dir string) *Makefile {
 
 	applyOptionsFromMakefile(dir+"/"+options.GetS(OPT_OUTPUT), makefile)
 
-	makefile.Metalinter = makefile.Metalinter || options.GetB(OPT_METALINTER)
 	makefile.Benchmark = makefile.Benchmark || options.GetB(OPT_BENCHMARK)
-	makefile.VerbTests = makefile.VerbTests || options.GetB(OPT_VERB_TESTS)
 	makefile.Race = makefile.Race || options.GetB(OPT_RACE)
 	makefile.Strip = makefile.Strip || options.GetB(OPT_STRIP)
 	makefile.GlideUsed = makefile.GlideUsed || options.GetB(OPT_GLIDE) || fsutil.IsExist(dir+"/glide.yaml")
@@ -546,14 +530,10 @@ func applyOptionsFromMakefile(file string, m *Makefile) {
 			m.GlideUsed = true
 		case getOptionName(OPT_DEP):
 			m.DepUsed = true
-		case getOptionName(OPT_METALINTER):
-			m.Metalinter = true
 		case getOptionName(OPT_STRIP):
 			m.Strip = true
 		case getOptionName(OPT_BENCHMARK):
 			m.Benchmark = true
-		case getOptionName(OPT_VERB_TESTS):
-			m.VerbTests = true
 		case getOptionName(OPT_RACE):
 			m.Race = true
 		}
@@ -584,16 +564,6 @@ func extractOptionsFromMakefile(file string) string {
 	}
 
 	return ""
-}
-
-// printError prints error message to console
-func printError(f string, a ...interface{}) {
-	fmtc.Fprintf(os.Stderr, "{r}"+f+"{!}\n", a...)
-}
-
-// printError prints warning message to console
-func printWarn(f string, a ...interface{}) {
-	fmtc.Fprintf(os.Stderr, "{y}"+f+"{!}\n", a...)
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -627,11 +597,8 @@ func (m *Makefile) getHeader() string {
 	result += getSeparator() + "\n\n"
 	result += m.getGenerationComment()
 	result += getSeparator() + "\n\n"
-
-	if m.ModUsed {
-		result += "export GO111MODULE=on\n\n"
-	}
-
+	result += m.getDefaultVariables()
+	result += getSeparator() + "\n\n"
 	result += m.getDefaultGoal() + "\n"
 	result += m.getPhony() + "\n"
 	result += getSeparator() + "\n\n"
@@ -646,8 +613,11 @@ func (m *Makefile) getTargets() string {
 	result += m.getBinTarget()
 	result += m.getInstallTarget()
 	result += m.getUninstallTarget()
+	result += m.getInitTarget()
 	result += m.getDepsTarget()
 	result += m.getTestDepsTarget()
+	result += m.getUpdateTarget()
+	result += m.getVendorTarget()
 	result += m.getTestTarget()
 	result += m.getFuzzTarget()
 	result += m.getBenchTarget()
@@ -656,7 +626,6 @@ func (m *Makefile) getTargets() string {
 	result += m.getModTarget()
 	result += m.getFmtTarget()
 	result += m.getVetTarget()
-	result += m.getMetalinterTarget()
 	result += m.getCleanTarget()
 	result += m.getHelpTarget()
 
@@ -676,15 +645,27 @@ func (m *Makefile) getPhony() string {
 	}
 
 	if len(m.BaseImports) != 0 || m.ModUsed {
-		phony = append(phony, "deps")
+		phony = append(phony, "deps", "update")
 	}
 
 	if len(m.TestImports) != 0 {
-		phony = append(phony, "deps-test", "test")
+		phony = append(phony, "test")
+	}
+
+	if !m.GlideUsed && !m.DepUsed && !m.ModUsed {
+		if len(m.TestImports) != 0 {
+			phony = append(phony, "deps-test")
+		}
+	} else {
+		phony = append(phony, "init", "vendor")
 	}
 
 	if len(m.FuzzPaths) != 0 {
 		phony = append(phony, "gen-fuzz")
+	}
+
+	if m.Benchmark {
+		phony = append(phony, "benchmark")
 	}
 
 	if m.GlideUsed {
@@ -692,19 +673,11 @@ func (m *Makefile) getPhony() string {
 	}
 
 	if m.DepUsed {
-		phony = append(phony, "dep-init", "dep-update")
+		phony = append(phony, "dep-init", "dep-update", "dep-vendor")
 	}
 
 	if m.ModUsed {
 		phony = append(phony, "mod-init", "mod-update", "mod-download", "mod-vendor")
-	}
-
-	if m.Benchmark {
-		phony = append(phony, "benchmark")
-	}
-
-	if m.Metalinter {
-		phony = append(phony, "metalinter")
 	}
 
 	phony = append(phony, "help")
@@ -733,12 +706,12 @@ func (m *Makefile) getBinTarget() string {
 	result := "all: " + strings.Join(m.Binaries, " ") + " ## Build all binaries\n\n"
 
 	for _, bin := range m.Binaries {
-		result += bin + ": ## " + fmt.Sprintf("Build %s binary", bin) + "\n"
+		result += bin + ":\n"
 
 		if m.Strip {
-			result += "\tgo build -ldflags=\"-s -w\" " + bin + ".go\n"
+			result += "\tgo build $(VERBOSE_FLAG) -ldflags=\"-s -w\" " + bin + ".go\n"
 		} else {
-			result += "\tgo build " + bin + ".go\n"
+			result += "\tgo build $(VERBOSE_FLAG) " + bin + ".go\n"
 		}
 
 		result += "\n"
@@ -777,11 +750,25 @@ func (m *Makefile) getUninstallTarget() string {
 	return result + "\n"
 }
 
+// getInitTarget generates target for "init" command
+func (m *Makefile) getInitTarget() string {
+	switch {
+	case m.GlideUsed:
+		return "init: glide-update ## Initialize new workspace\n\n"
+	case m.DepUsed:
+		return "init: dep-vendor ## Initialize new workspace\n\n"
+	case m.ModUsed:
+		return "init: mod-init ## Initialize new module\n\n"
+	}
+
+	return ""
+}
+
 // getDepsTarget generates target for "deps" command
 func (m *Makefile) getDepsTarget() string {
 	if len(m.BaseImports) == 0 {
 		if m.ModUsed {
-			return "deps: mod-update ## Download dependencies\n\n"
+			return "deps: mod-download ## Download dependencies\n\n"
 		}
 
 		return ""
@@ -805,10 +792,41 @@ func (m *Makefile) getDepsTarget() string {
 	}
 
 	for _, pkg := range m.BaseImports {
-		result += "\tgo get -d -v " + pkg + "\n"
+		result += "\tgo get -d $(VERBOSE_FLAG) " + pkg + "\n"
 	}
 
 	return result + "\n"
+}
+
+// getVendorTarget generates target for "vendor" command
+func (m *Makefile) getVendorTarget() string {
+	switch {
+	case m.GlideUsed:
+		return "vendor: glide-create ## Make vendored copy of dependencies\n\n"
+	case m.DepUsed:
+		return "vendor: dep-init ## Make vendored copy of dependencies\n\n"
+	case m.ModUsed:
+		return "vendor: mod-vendor ## Make vendored copy of dependencies\n\n"
+	}
+
+	return ""
+}
+
+// getUpdateTarget generates target for "update" command
+func (m *Makefile) getUpdateTarget() string {
+	switch {
+	case m.GlideUsed:
+		return "update: glide-update ## Update dependencies to the latest versions\n\n"
+	case m.DepUsed:
+		return "update: dep-update ## Update dependencies to the latest versions\n\n"
+	case m.ModUsed:
+		return "update: mod-update ## Update dependencies to the latest versions\n\n"
+	}
+
+	result := "update: ## Update dependencies to the latest versions\n"
+	result += "\tgo get -d -u $(VERBOSE_FLAG) ./...\n\n"
+
+	return result
 }
 
 // getDepsTarget generates target for "deps-test" command
@@ -819,17 +837,16 @@ func (m *Makefile) getTestDepsTarget() string {
 
 	pkgMngUsed := m.DepUsed || m.GlideUsed || m.ModUsed
 
-	result := "deps-test: "
-
 	if pkgMngUsed {
-		result += "deps "
+		return ""
 	}
 
+	result := "deps-test: "
 	result += "## Download dependencies for tests\n"
 
 	if !pkgMngUsed {
 		for _, pkg := range m.TestImports {
-			result += "\tgo get -d -v " + pkg + "\n"
+			result += "\tgo get -d $(VERBOSE_FLAG) " + pkg + "\n"
 		}
 	}
 
@@ -849,11 +866,7 @@ func (m *Makefile) getTestTarget() string {
 	}
 
 	result := "test: ## Run tests\n"
-	result += "\tgo test"
-
-	if m.VerbTests {
-		result += " -v"
-	}
+	result += "\tgo test $(VERBOSE_FLAG)"
 
 	if m.Race {
 		result += " -race -covermode=atomic"
@@ -916,7 +929,7 @@ func (m *Makefile) getFmtTarget() string {
 
 // getVetTarget generates target for "vet" command
 func (m *Makefile) getVetTarget() string {
-	result := "vet: ## Runs go vet over sources\n"
+	result := "vet: ## Runs 'go vet' over sources\n"
 	result += "\tgo vet -composites=false -printfuncs=LPrintf,TLPrintf,TPrintf,log.Debug,log.Info,log.Warn,log.Error,log.Critical,log.Print ./...\n"
 
 	return result + "\n"
@@ -944,18 +957,18 @@ func (m *Makefile) getGlideTarget() string {
 		return ""
 	}
 
-	result := "glide-create: ## Initialize glide workspace\n"
+	result := "glide-create:\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\tglide init\n"
 	result += "\n"
 
-	result += "glide-install: ## Install packages and dependencies through glide\n"
+	result += "glide-install:\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\ttest -s glide.yaml || glide init\n"
 	result += "\tglide install\n"
 	result += "\n"
 
-	result += "glide-update: ## Update packages and dependencies through glide\n"
+	result += "glide-update:\n"
 	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
 	result += "\ttest -s glide.yaml || glide init\n"
 	result += "\tglide update\n\n"
@@ -969,14 +982,18 @@ func (m *Makefile) getDepTarget() string {
 		return ""
 	}
 
-	result := "dep-init: ## Initialize dep workspace\n"
+	result := "dep-init:\n"
 	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
 	result += "\tdep init\n\n"
 
-	result += "dep-update: ## Update packages and dependencies through dep\n"
+	result += "dep-update:\n"
 	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
 	result += "\ttest -s Gopkg.toml || dep init\n"
 	result += "\ttest -s Gopkg.lock && dep ensure -update || dep ensure\n\n"
+
+	result += "dep-vendor:\n"
+	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
+	result += "\tdep ensure\n\n"
 
 	return result
 }
@@ -987,32 +1004,36 @@ func (m *Makefile) getModTarget() string {
 		return ""
 	}
 
-	result := "mod-init: ## Initialize new module\n"
+	result := "mod-init:\n"
+	result += "ifdef MODULE_PATH ## Module path for initialization (String)\n"
+	result += "\tgo mod init $(MODULE_PATH)\n"
+	result += "else\n"
 	result += "\tgo mod init\n"
-	result += "\tgo mod tidy\n\n"
+	result += "endif\n\n"
+	result += "ifdef COMPAT ## Compatible Go version (String)\n"
+	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)\n"
+	result += "else\n"
+	result += "\tgo mod tidy $(VERBOSE_FLAG)\n"
+	result += "endif\n\n"
 
-	result += "mod-update: ## Update modules to their latest versions\n"
-	result += "\tgo get -u\n"
-	result += "\tgo mod tidy\n\n"
+	result += "mod-update:\n"
+	result += "ifdef UPDATE_ALL ## Update all dependencies (Flag)\n"
+	result += "\tgo get -u $(VERBOSE_FLAG) all\n"
+	result += "else\n"
+	result += "\tgo get -u $(VERBOSE_FLAG) ./...\n"
+	result += "endif\n\n"
+	result += "ifdef COMPAT\n"
+	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)\n"
+	result += "else\n"
+	result += "\tgo mod tidy $(VERBOSE_FLAG)\n"
+	result += "endif\n\n"
+	result += "\ttest -d vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
 
-	result += "mod-download: ## Download modules to local cache\n"
+	result += "mod-download:\n"
 	result += "\tgo mod download\n\n"
 
-	result += "mod-vendor: ## Make vendored copy of dependencies\n"
-	result += "\tgo mod vendor\n\n"
-
-	return result
-}
-
-// getMetalinterTarget generates target for "metalineter" command
-func (m *Makefile) getMetalinterTarget() string {
-	if !m.Metalinter {
-		return ""
-	}
-
-	result := "metalinter: ## Install and run gometalinter\n"
-	result += "\ttest -s $(GOPATH)/bin/gometalinter || (go get -u github.com/alecthomas/gometalinter ; $(GOPATH)/bin/gometalinter --install)\n"
-	result += "\t$(GOPATH)/bin/gometalinter --deadline 30s\n\n"
+	result += "mod-vendor:\n"
+	result += "\tgo mod vendor $(VERBOSE_FLAG)\n\n"
 
 	return result
 }
@@ -1022,9 +1043,13 @@ func (m *Makefile) getHelpTarget() string {
 	fmtSize := strconv.Itoa(m.MaxTargetNameSize)
 
 	result := "help: ## Show this info\n"
-	result += "\t@echo -e '\\n\\033[1mSupported targets:\\033[0m\\n'\n"
+	result += "\t@echo -e '\\n\\033[1mTargets:\\033[0m\\n'\n"
 	result += "\t@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \\\n"
 	result += "\t\t| awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \\033[33m%-" + fmtSize + "s\\033[0m %s\\n\", $$1, $$2}'\n"
+	result += "\t@echo -e '\\n\\033[1mVariables:\\033[0m\\n'\n"
+	result += "\t@grep -E '^ifdef [A-Z_]+ .*?## .*$$' $(abspath $(lastword $(MAKEFILE_LIST))) \\\n"
+	result += "\t\t| sed 's/ifdef //' \\\n"
+	result += "\t\t| awk 'BEGIN {FS = \" .*?## \"}; {printf \"  \\033[32m%-14s\\033[0m %s\\n\", $$1, $$2}'\n"
 	result += "\t@echo -e ''\n"
 	result += "\t@echo -e '\\033[90mGenerated by GoMakeGen " + VER + "\\033[0m\\n'\n\n"
 
@@ -1048,20 +1073,12 @@ func (m *Makefile) getGenerationComment() string {
 		result += fmt.Sprintf("--%s ", getOptionName(OPT_MOD))
 	}
 
-	if m.Metalinter {
-		result += fmt.Sprintf("--%s ", getOptionName(OPT_METALINTER))
-	}
-
 	if m.Strip {
 		result += fmt.Sprintf("--%s ", getOptionName(OPT_STRIP))
 	}
 
 	if m.Benchmark {
 		result += fmt.Sprintf("--%s ", getOptionName(OPT_BENCHMARK))
-	}
-
-	if m.VerbTests {
-		result += fmt.Sprintf("--%s ", getOptionName(OPT_VERB_TESTS))
 	}
 
 	if m.Race {
@@ -1083,6 +1100,21 @@ func (m *Makefile) getGenerationComment() string {
 	return result
 }
 
+// getDefaultVariables generates default variables definitions
+func (m *Makefile) getDefaultVariables() string {
+	var result string
+
+	if m.ModUsed {
+		result += "export GO111MODULE=on\n\n"
+	}
+
+	result += "ifdef VERBOSE ## Print verbose information (Flag)\n"
+	result += "VERBOSE_FLAG = -v\n"
+	result += "endif\n\n"
+
+	return result
+}
+
 // getOptionName parse option name in options package notation
 // and retunr long option name
 func getOptionName(opt string) string {
@@ -1097,17 +1129,27 @@ func getSeparator() string {
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
+// printError prints error message to console
+func printError(f string, a ...interface{}) {
+	fmtc.Fprintf(os.Stderr, "{r}"+f+"{!}\n", a...)
+}
+
+// printError prints warning message to console
+func printWarn(f string, a ...interface{}) {
+	fmtc.Fprintf(os.Stderr, "{y}"+f+"{!}\n", a...)
+}
+
+// ////////////////////////////////////////////////////////////////////////////////// //
+
 // showUsage print usage info
 func showUsage() {
 	info := usage.NewInfo("", "dir")
 
-	info.AddOption(OPT_GLIDE, "Add target to fetching dependecies with glide")
-	info.AddOption(OPT_DEP, "Add target to fetching dependecies with dep")
-	info.AddOption(OPT_MOD, "Add target to fetching dependecies with go mod")
-	info.AddOption(OPT_METALINTER, "Add target with metalinter check")
+	info.AddOption(OPT_GLIDE, "Add target to fetching dependencies with glide")
+	info.AddOption(OPT_DEP, "Add target to fetching dependencies with dep")
+	info.AddOption(OPT_MOD, "Add target to fetching dependencies with go mod")
 	info.AddOption(OPT_STRIP, "Strip binaries")
 	info.AddOption(OPT_BENCHMARK, "Add target to run benchmarks")
-	info.AddOption(OPT_VERB_TESTS, "Enable verbose output for tests")
 	info.AddOption(OPT_RACE, "Add target to test race conditions")
 	info.AddOption(OPT_OUTPUT, "Output file {s-}(Makefile by default){!}", "file")
 	info.AddOption(OPT_NO_COLOR, "Disable colors in output")
