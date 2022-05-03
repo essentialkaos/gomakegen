@@ -38,7 +38,7 @@ update: ## Update dependencies to the latest versions
 fmt: ## Format source code with gofmt
 	find . -name "*.go" -exec gofmt -s -w {} \;
 
-vet: ## Runs go vet over sources
+vet: ## Runs 'go vet' over sources
 	go vet -composites=false -printfuncs=LPrintf,TLPrintf,TPrintf,log.Debug,log.Info,log.Warn,log.Error,log.Critical,log.Print ./...
 
 clean: ## Remove generated files

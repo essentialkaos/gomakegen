@@ -147,18 +147,10 @@ func main() {
 
 // checkDir checks directory with sources
 func checkDir(dir string) {
-	if !fsutil.IsExist(dir) {
-		printWarn("Directory %s does not exist", dir)
-		os.Exit(1)
-	}
+	err := fsutil.ValidatePerms("DRX", dir)
 
-	if !fsutil.IsReadable(dir) {
-		printWarn("Directory %s is not readable", dir)
-		os.Exit(1)
-	}
-
-	if !fsutil.IsExecutable(dir) {
-		printWarn("Directory %s is not executable", dir)
+	if err != nil {
+		printWarn(err.Error())
 		os.Exit(1)
 	}
 }
@@ -574,16 +566,6 @@ func extractOptionsFromMakefile(file string) string {
 	return ""
 }
 
-// printError prints error message to console
-func printError(f string, a ...interface{}) {
-	fmtc.Fprintf(os.Stderr, "{r}"+f+"{!}\n", a...)
-}
-
-// printError prints warning message to console
-func printWarn(f string, a ...interface{}) {
-	fmtc.Fprintf(os.Stderr, "{y}"+f+"{!}\n", a...)
-}
-
 // ////////////////////////////////////////////////////////////////////////////////// //
 
 // Cleanup cleans imports and binaries
@@ -947,7 +929,7 @@ func (m *Makefile) getFmtTarget() string {
 
 // getVetTarget generates target for "vet" command
 func (m *Makefile) getVetTarget() string {
-	result := "vet: ## Runs go vet over sources\n"
+	result := "vet: ## Runs 'go vet' over sources\n"
 	result += "\tgo vet -composites=false -printfuncs=LPrintf,TLPrintf,TPrintf,log.Debug,log.Info,log.Warn,log.Error,log.Critical,log.Print ./...\n"
 
 	return result + "\n"
@@ -1143,6 +1125,18 @@ func getOptionName(opt string) string {
 // getSeparator returns separator
 func getSeparator() string {
 	return strings.Repeat("#", SEPARATOR_SIZE)
+}
+
+// ////////////////////////////////////////////////////////////////////////////////// //
+
+// printError prints error message to console
+func printError(f string, a ...interface{}) {
+	fmtc.Fprintf(os.Stderr, "{r}"+f+"{!}\n", a...)
+}
+
+// printError prints warning message to console
+func printWarn(f string, a ...interface{}) {
+	fmtc.Fprintf(os.Stderr, "{y}"+f+"{!}\n", a...)
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
