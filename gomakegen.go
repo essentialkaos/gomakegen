@@ -139,7 +139,7 @@ func main() {
 		return
 	}
 
-	dir := args.Get(0)
+	dir := args.Get(0).Clean().String()
 
 	checkDir(dir)
 	process(dir)
