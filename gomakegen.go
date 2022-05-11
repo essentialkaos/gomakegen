@@ -37,7 +37,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "2.0.0"
+	VER  = "2.1.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -708,8 +708,10 @@ func (m *Makefile) getBinTarget() string {
 	for _, bin := range m.Binaries {
 		result += bin + ":\n"
 
-		if m.Strip {
-			result += "\tgo build $(VERBOSE_FLAG) -ldflags=\"-s -w\" " + bin + ".go\n"
+		ldFlags := m.getLDFlags()
+
+		if ldFlags != "" {
+			result += "\tgo build $(VERBOSE_FLAG) -ldflags=\"" + ldFlags + "\" " + bin + ".go\n"
 		} else {
 			result += "\tgo build $(VERBOSE_FLAG) " + bin + ".go\n"
 		}
@@ -1112,7 +1114,23 @@ func (m *Makefile) getDefaultVariables() string {
 	result += "VERBOSE_FLAG = -v\n"
 	result += "endif\n\n"
 
+	result += "MAKEDIR = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))\n"
+	result += "GITREV ?= $(shell test -s $(MAKEDIR)/.git && git rev-parse --short HEAD)\n\n"
+
 	return result
+}
+
+// getLDFlags returns LDFLAGS for build command
+func (m *Makefile) getLDFlags() string {
+	var flags []string
+
+	if m.Strip {
+		flags = append(flags, "-s", "-w")
+	}
+
+	flags = append(flags, "-X main.gitrev=$(GITREV)")
+
+	return strings.Join(flags, " ")
 }
 
 // getOptionName parse option name in options package notation
