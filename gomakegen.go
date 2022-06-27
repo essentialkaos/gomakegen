@@ -867,18 +867,22 @@ func (m *Makefile) getTestTarget() string {
 		targets = strings.Join(m.TestPaths, " ")
 	}
 
-	result := "test: ## Run tests\n"
-	result += "\tgo test $(VERBOSE_FLAG)"
+	testTarget := "\tgo test $(VERBOSE_FLAG)"
 
 	if m.Race {
-		result += " -race -covermode=atomic"
+		testTarget += " -race -covermode=atomic"
 	} else {
-		result += " -covermode=count"
+		testTarget += " -covermode=count"
 	}
 
-	result += " " + targets + "\n"
+	result := "test: ## Run tests\n"
+	result += "ifdef COVERAGE_FILE ## Save coverage data into file (String)\n"
+	result += "\t" + testTarget + " -coverprofile=$(COVERAGE_FILE) " + targets + "\n"
+	result += "else\n"
+	result += "\t" + testTarget + " " + targets + "\n"
+	result += "endif\n\n"
 
-	return result + "\n"
+	return result
 }
 
 // getFuzzTarget generates target for "fuzz" command
