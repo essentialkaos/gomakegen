@@ -37,13 +37,11 @@ Usage: gomakegen {options} dir
 
 Options
 
-  --glide, -g          Add target to fetching dependecies with glide
-  --dep, -d            Add target to fetching dependecies with dep
-  --mod, -m            Add target to fetching dependecies with go mod
-  --metalinter, -M     Add target with metalinter check
+  --glide, -g          Add target to fetching dependencies with glide
+  --dep, -d            Add target to fetching dependencies with dep
+  --mod, -m            Add target to fetching dependencies with go mod (default for Go ≥ 1.18)
   --strip, -S          Strip binaries
   --benchmark, -B      Add target to run benchmarks
-  --verbose, -V        Enable verbose output for tests
   --race, -R           Add target to test race conditions
   --output, -o file    Output file (Makefile by default)
   --no-color, -nc      Disable colors in output

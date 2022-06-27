@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -30,6 +31,8 @@ import (
 	"github.com/essentialkaos/ek/strutil"
 	"github.com/essentialkaos/ek/usage"
 	"github.com/essentialkaos/ek/usage/update"
+	"github.com/essentialkaos/ek/v12/fmtc"
+	"github.com/essentialkaos/ek/version"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -188,6 +191,13 @@ func filterSources(sources []string) []string {
 
 // exportMakefile renders makefile and write data to file
 func exportMakefile(makefile *Makefile) {
+	switch {
+	case makefile.DepUsed:
+		fmtc.Println("{r}▲ Warning! Dep is deprecated and must not be used for new projects.{!}\n")
+	case makefile.GlideUsed:
+		fmtc.Println("{r}▲ Warning! Glide is deprecated and must not be used for new projects.{!}\n")
+	}
+
 	err := ioutil.WriteFile(options.GetS(OPT_OUTPUT), makefile.Render(), 0644)
 
 	if err != nil {
@@ -201,6 +211,7 @@ func exportMakefile(makefile *Makefile) {
 // generateMakefile collects imports, process options and generate makefile struct
 func generateMakefile(sources []string, dir string) *Makefile {
 	makefile := collectImports(sources, dir)
+	goVersion := getGoVersion()
 
 	applyOptionsFromMakefile(dir+"/"+options.GetS(OPT_OUTPUT), makefile)
 
@@ -210,6 +221,10 @@ func generateMakefile(sources []string, dir string) *Makefile {
 	makefile.GlideUsed = makefile.GlideUsed || options.GetB(OPT_GLIDE) || fsutil.IsExist(dir+"/glide.yaml")
 	makefile.DepUsed = makefile.DepUsed || options.GetB(OPT_DEP) || fsutil.IsExist(dir+"/Gopkg.toml")
 	makefile.ModUsed = makefile.ModUsed || options.GetB(OPT_MOD) || fsutil.IsExist(dir+"/go.mod")
+
+	if !goVersion.IsZero() && (goVersion.Major() > 1 || goVersion.Minor() > 17) {
+		makefile.ModUsed = true
+	}
 
 	makefile.HasStableImports = containsStableImports(makefile.BaseImports)
 	makefile.HasStableImports = makefile.HasStableImports || containsStableImports(makefile.TestImports)
@@ -1137,6 +1152,25 @@ func (m *Makefile) getLDFlags() string {
 	return strings.Join(flags, " ")
 }
 
+// ////////////////////////////////////////////////////////////////////////////////// //
+
+// getGoVersion returns current go version
+func getGoVersion() version.Version {
+	cmd := exec.Command("go", "version")
+	output, err := cmd.Output()
+
+	if err != nil {
+		return version.Version{}
+	}
+
+	rawVersion := strutil.ReadField(string(output), 2, false, " ")
+	rawVersion = strutil.Exclude(rawVersion, "go")
+
+	ver, _ := version.Parse(rawVersion)
+
+	return ver
+}
+
 // getOptionName parse option name in options package notation
 // and retunr long option name
 func getOptionName(opt string) string {
@@ -1169,7 +1203,7 @@ func showUsage() {
 
 	info.AddOption(OPT_GLIDE, "Add target to fetching dependencies with glide")
 	info.AddOption(OPT_DEP, "Add target to fetching dependencies with dep")
-	info.AddOption(OPT_MOD, "Add target to fetching dependencies with go mod")
+	info.AddOption(OPT_MOD, "Add target to fetching dependencies with go mod {s-}(default for Go ≥ 1.18){!}")
 	info.AddOption(OPT_STRIP, "Strip binaries")
 	info.AddOption(OPT_BENCHMARK, "Add target to run benchmarks")
 	info.AddOption(OPT_RACE, "Add target to test race conditions")
