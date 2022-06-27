@@ -31,7 +31,6 @@ import (
 	"github.com/essentialkaos/ek/strutil"
 	"github.com/essentialkaos/ek/usage"
 	"github.com/essentialkaos/ek/usage/update"
-	"github.com/essentialkaos/ek/v12/fmtc"
 	"github.com/essentialkaos/ek/version"
 )
 
