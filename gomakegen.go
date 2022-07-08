@@ -1047,13 +1047,13 @@ func (m *Makefile) getModTarget() string {
 	result += "else\n"
 	result += "\tgo mod tidy $(VERBOSE_FLAG)\n"
 	result += "endif\n\n"
-	result += "\ttest -d vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
+	result += "\ttest -d vendor && rm -rf vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
 
 	result += "mod-download:\n"
 	result += "\tgo mod download\n\n"
 
 	result += "mod-vendor:\n"
-	result += "\tgo mod vendor $(VERBOSE_FLAG)\n\n"
+	result += "\trm -rf vendor && go mod vendor $(VERBOSE_FLAG)\n\n"
 
 	return result
 }
