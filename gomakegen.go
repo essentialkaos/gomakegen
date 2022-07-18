@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -30,6 +31,7 @@ import (
 	"github.com/essentialkaos/ek/strutil"
 	"github.com/essentialkaos/ek/usage"
 	"github.com/essentialkaos/ek/usage/update"
+	"github.com/essentialkaos/ek/version"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -37,7 +39,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "2.0.0"
+	VER  = "2.1.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -188,6 +190,13 @@ func filterSources(sources []string) []string {
 
 // exportMakefile renders makefile and write data to file
 func exportMakefile(makefile *Makefile) {
+	switch {
+	case makefile.DepUsed:
+		fmtc.Println("{r}▲ Warning! Dep is deprecated and must not be used for new projects.{!}\n")
+	case makefile.GlideUsed:
+		fmtc.Println("{r}▲ Warning! Glide is deprecated and must not be used for new projects.{!}\n")
+	}
+
 	err := ioutil.WriteFile(options.GetS(OPT_OUTPUT), makefile.Render(), 0644)
 
 	if err != nil {
@@ -201,6 +210,7 @@ func exportMakefile(makefile *Makefile) {
 // generateMakefile collects imports, process options and generate makefile struct
 func generateMakefile(sources []string, dir string) *Makefile {
 	makefile := collectImports(sources, dir)
+	goVersion := getGoVersion()
 
 	applyOptionsFromMakefile(dir+"/"+options.GetS(OPT_OUTPUT), makefile)
 
@@ -210,6 +220,10 @@ func generateMakefile(sources []string, dir string) *Makefile {
 	makefile.GlideUsed = makefile.GlideUsed || options.GetB(OPT_GLIDE) || fsutil.IsExist(dir+"/glide.yaml")
 	makefile.DepUsed = makefile.DepUsed || options.GetB(OPT_DEP) || fsutil.IsExist(dir+"/Gopkg.toml")
 	makefile.ModUsed = makefile.ModUsed || options.GetB(OPT_MOD) || fsutil.IsExist(dir+"/go.mod")
+
+	if !goVersion.IsZero() && (goVersion.Major() > 1 || goVersion.Minor() > 17) {
+		makefile.ModUsed = true
+	}
 
 	makefile.HasStableImports = containsStableImports(makefile.BaseImports)
 	makefile.HasStableImports = makefile.HasStableImports || containsStableImports(makefile.TestImports)
@@ -708,8 +722,10 @@ func (m *Makefile) getBinTarget() string {
 	for _, bin := range m.Binaries {
 		result += bin + ":\n"
 
-		if m.Strip {
-			result += "\tgo build $(VERBOSE_FLAG) -ldflags=\"-s -w\" " + bin + ".go\n"
+		ldFlags := m.getLDFlags()
+
+		if ldFlags != "" {
+			result += "\tgo build $(VERBOSE_FLAG) -ldflags=\"" + ldFlags + "\" " + bin + ".go\n"
 		} else {
 			result += "\tgo build $(VERBOSE_FLAG) " + bin + ".go\n"
 		}
@@ -865,18 +881,22 @@ func (m *Makefile) getTestTarget() string {
 		targets = strings.Join(m.TestPaths, " ")
 	}
 
-	result := "test: ## Run tests\n"
-	result += "\tgo test $(VERBOSE_FLAG)"
+	testTarget := "\tgo test $(VERBOSE_FLAG)"
 
 	if m.Race {
-		result += " -race -covermode=atomic"
+		testTarget += " -race -covermode=atomic"
 	} else {
-		result += " -covermode=count"
+		testTarget += " -covermode=count"
 	}
 
-	result += " " + targets + "\n"
+	result := "test: ## Run tests\n"
+	result += "ifdef COVERAGE_FILE ## Save coverage data into file (String)\n"
+	result += "\t" + testTarget + " -coverprofile=$(COVERAGE_FILE) " + targets + "\n"
+	result += "else\n"
+	result += "\t" + testTarget + " " + targets + "\n"
+	result += "endif\n\n"
 
-	return result + "\n"
+	return result
 }
 
 // getFuzzTarget generates target for "fuzz" command
@@ -1027,13 +1047,13 @@ func (m *Makefile) getModTarget() string {
 	result += "else\n"
 	result += "\tgo mod tidy $(VERBOSE_FLAG)\n"
 	result += "endif\n\n"
-	result += "\ttest -d vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
+	result += "\ttest -d vendor && rm -rf vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
 
 	result += "mod-download:\n"
 	result += "\tgo mod download\n\n"
 
 	result += "mod-vendor:\n"
-	result += "\tgo mod vendor $(VERBOSE_FLAG)\n\n"
+	result += "\trm -rf vendor && go mod vendor $(VERBOSE_FLAG)\n\n"
 
 	return result
 }
@@ -1112,7 +1132,42 @@ func (m *Makefile) getDefaultVariables() string {
 	result += "VERBOSE_FLAG = -v\n"
 	result += "endif\n\n"
 
+	result += "MAKEDIR = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))\n"
+	result += "GITREV ?= $(shell test -s $(MAKEDIR)/.git && git rev-parse --short HEAD)\n\n"
+
 	return result
+}
+
+// getLDFlags returns LDFLAGS for build command
+func (m *Makefile) getLDFlags() string {
+	var flags []string
+
+	if m.Strip {
+		flags = append(flags, "-s", "-w")
+	}
+
+	flags = append(flags, "-X main.gitrev=$(GITREV)")
+
+	return strings.Join(flags, " ")
+}
+
+// ////////////////////////////////////////////////////////////////////////////////// //
+
+// getGoVersion returns current go version
+func getGoVersion() version.Version {
+	cmd := exec.Command("go", "version")
+	output, err := cmd.Output()
+
+	if err != nil {
+		return version.Version{}
+	}
+
+	rawVersion := strutil.ReadField(string(output), 2, false, " ")
+	rawVersion = strutil.Exclude(rawVersion, "go")
+
+	ver, _ := version.Parse(rawVersion)
+
+	return ver
 }
 
 // getOptionName parse option name in options package notation
@@ -1147,7 +1202,7 @@ func showUsage() {
 
 	info.AddOption(OPT_GLIDE, "Add target to fetching dependencies with glide")
 	info.AddOption(OPT_DEP, "Add target to fetching dependencies with dep")
-	info.AddOption(OPT_MOD, "Add target to fetching dependencies with go mod")
+	info.AddOption(OPT_MOD, "Add target to fetching dependencies with go mod {s-}(default for Go ≥ 1.18){!}")
 	info.AddOption(OPT_STRIP, "Strip binaries")
 	info.AddOption(OPT_BENCHMARK, "Add target to run benchmarks")
 	info.AddOption(OPT_RACE, "Add target to test race conditions")
