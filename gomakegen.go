@@ -22,16 +22,16 @@ import (
 	"go/parser"
 	"go/token"
 
-	"github.com/essentialkaos/ek/fmtc"
-	"github.com/essentialkaos/ek/fsutil"
-	"github.com/essentialkaos/ek/mathutil"
-	"github.com/essentialkaos/ek/options"
-	"github.com/essentialkaos/ek/path"
-	"github.com/essentialkaos/ek/sliceutil"
-	"github.com/essentialkaos/ek/strutil"
-	"github.com/essentialkaos/ek/usage"
-	"github.com/essentialkaos/ek/usage/update"
-	"github.com/essentialkaos/ek/version"
+	"github.com/essentialkaos/ek/v12/fmtc"
+	"github.com/essentialkaos/ek/v12/fsutil"
+	"github.com/essentialkaos/ek/v12/mathutil"
+	"github.com/essentialkaos/ek/v12/options"
+	"github.com/essentialkaos/ek/v12/path"
+	"github.com/essentialkaos/ek/v12/sliceutil"
+	"github.com/essentialkaos/ek/v12/strutil"
+	"github.com/essentialkaos/ek/v12/usage"
+	"github.com/essentialkaos/ek/v12/usage/update"
+	"github.com/essentialkaos/ek/v12/version"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -39,7 +39,7 @@ import (
 // App info
 const (
 	APP  = "gomakegen"
-	VER  = "2.1.0"
+	VER  = "2.2.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 

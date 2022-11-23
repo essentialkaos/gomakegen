@@ -7,7 +7,7 @@ main() {
 
   mv Makefile Makefile2
 
-  ./gomakegen --strip .
+  ./gomakegen --mod --strip .
 
   [[ $? -ne 0 ]] && exit 1
 
