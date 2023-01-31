@@ -7,6 +7,13 @@ on:
     branches: [master]
   schedule:
     - cron: '0 3 * * */2'
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force workflow run'
+        required: true
+        type: choice
+        options: [yes, no]
 
 permissions:
   security-events: write
@@ -19,15 +26,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 2
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
-      with:
-        languages: go
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: go
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
