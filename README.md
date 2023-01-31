@@ -30,6 +30,33 @@ You can download prebuilt binaries for Linux and macOS from [EK Apps Repository]
 bash <(curl -fsSL https://apps.kaos.st/get) gomakegen
 ```
 
+### Command-line completion
+
+You can generate completion for `bash`, `zsh` or `fish` shell.
+
+Bash:
+```bash
+sudo gomakegen --completion=bash 1> /etc/bash_completion.d/gomakegen
+```
+
+ZSH:
+```bash
+sudo gomakegen --completion=zsh 1> /usr/share/zsh/site-functions/gomakegen
+```
+
+Fish:
+```bash
+sudo gomakegen --completion=fish 1> /usr/share/fish/vendor_completions.d/gomakegen.fish
+```
+
+### Man documentation
+
+You can generate man page using next command:
+
+```bash
+gomakegen --generate-man | sudo gzip > /usr/share/man/man1/gomakegen.1.gz
+```
+
 ### Usage
 
 ```
