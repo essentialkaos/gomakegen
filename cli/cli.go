@@ -1195,8 +1195,8 @@ func getGoVersion() version.Version {
 	return ver
 }
 
-// getOptionName parse option name in options package notation
-// and retunr long option name
+// getOptionName parses option name in options package notation
+// and returns long option name
 func getOptionName(opt string) string {
 	longOpt, _ := options.ParseOptionName(opt)
 	return longOpt
