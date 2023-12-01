@@ -1056,7 +1056,7 @@ func (m *Makefile) getModTarget() string {
 	result += "\tgo mod init\n"
 	result += "endif\n\n"
 	result += "ifdef COMPAT ## Compatible Go version (String)\n"
-	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)\n"
+	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT) -go=$(COMPAT)\n"
 	result += "else\n"
 	result += "\tgo mod tidy $(VERBOSE_FLAG)\n"
 	result += "endif\n\n"
