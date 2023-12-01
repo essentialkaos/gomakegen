@@ -60,7 +60,7 @@ gomakegen --generate-man | sudo gzip > /usr/share/man/man1/gomakegen.1.gz
 ### Usage
 
 ```
-Usage: gomakegen {options} dir
+Usage: gomakegen {options} source-dir
 
 Options
 

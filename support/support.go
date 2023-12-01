@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"runtime/debug"
 	"strings"
 
 	"github.com/essentialkaos/ek/v12/fmtc"
@@ -24,20 +25,9 @@ import (
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
-// Pkg contains basic package info
-type Pkg struct {
-	Name    string
-	Version string
-}
-
-// Pkgs is slice with packages
-type Pkgs []Pkg
-
-// ////////////////////////////////////////////////////////////////////////////////// //
-
-// ShowSupportInfo prints verbose info about application, system, dependencies and
+// Print prints verbose info about application, system, dependencies and
 // important environment
-func ShowSupportInfo(app, ver, gitRev string, gomod []byte) {
+func Print(app, ver, gitRev string, gomod []byte) {
 	fmtutil.SeparatorTitleColorTag = "{s-}"
 	fmtutil.SeparatorFullscreen = false
 	fmtutil.SeparatorColorTag = "{s-}"
@@ -66,6 +56,10 @@ func showApplicationInfo(app, ver, gitRev string) {
 		runtime.GOOS, runtime.GOARCH,
 	))
 
+	if gitRev == "" {
+		gitRev = extractGitRevFromBuildInfo()
+	}
+
 	if gitRev != "" {
 		if !fmtc.DisableColors && fmtc.IsTrueColorSupported() {
 			printInfo(7, "Git SHA", gitRev+getHashColorBullet(gitRev))
@@ -87,6 +81,25 @@ func showApplicationInfo(app, ver, gitRev string) {
 	}
 }
 
+// showEnvInfo shows info about environment
+func showEnvInfo() {
+	fmtutil.Separator(false, "ENVIRONMENT")
+
+	cmd := exec.Command("go", "version")
+	out, err := cmd.Output()
+
+	if err != nil {
+		printInfo(2, "Go", "")
+		return
+	}
+
+	goVer := string(out)
+	goVer = strutil.ReadField(goVer, 2, false, " ")
+	goVer = strutil.Exclude(goVer, "go")
+
+	printInfo(2, "Go", goVer)
+}
+
 // showDepsInfo shows information about all dependencies
 func showDepsInfo(gomod []byte) {
 	deps := depsy.Extract(gomod, false)
@@ -106,32 +119,21 @@ func showDepsInfo(gomod []byte) {
 	}
 }
 
-// showEnvInfo shows info about environment
-func showEnvInfo() {
-	fmtutil.Separator(false, "ENVIRONMENT")
+// extractGitRevFromBuildInfo extracts git SHA from embedded build info
+func extractGitRevFromBuildInfo() string {
+	info, ok := debug.ReadBuildInfo()
 
-	cmd := exec.Command("go", "version")
-	out, err := cmd.Output()
-
-	if err != nil {
-		printInfo(2, "Go", "")
-		return
+	if !ok {
+		return ""
 	}
 
-	rawInfo := strutil.Exclude(string(out), "\n")
-	goVer := strutil.ReadField(rawInfo, 2, false, " ")
-	goVer = strutil.Exclude(goVer, "go")
-	goArch := strutil.ReadField(rawInfo, 3, false, " ")
-
-	if goVer == "" || goArch == "" {
-		printInfo(2, "Go", "")
-		return
+	for _, s := range info.Settings {
+		if s.Key == "vcs.revision" && len(s.Value) > 7 {
+			return s.Value[:7]
+		}
 	}
 
-	printInfo(
-		2, "Go",
-		fmtc.Sprintf("%s {s}(%s){!}", goVer, goArch),
-	)
+	return ""
 }
 
 // getHashColorBullet return bullet with color from hash
@@ -145,7 +147,7 @@ func getHashColorBullet(v string) string {
 
 // printInfo formats and prints info record
 func printInfo(size int, name, value string) {
-	name = name + ":"
+	name += ":"
 	size++
 
 	if value == "" {
@@ -158,16 +160,3 @@ func printInfo(size int, name, value string) {
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
-
-// getMaxSize returns max package name size
-func (p Pkgs) getMaxSize() int {
-	size := 0
-
-	for _, pkg := range p {
-		if len(pkg.Name) > size {
-			size = len(pkg.Name)
-		}
-	}
-
-	return size
-}
