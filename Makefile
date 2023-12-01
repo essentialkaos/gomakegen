@@ -51,7 +51,7 @@ else
 endif
 
 ifdef COMPAT ## Compatible Go version (String)
-	go mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)
+	go mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT) -go=$(COMPAT)
 else
 	go mod tidy $(VERBOSE_FLAG)
 endif
