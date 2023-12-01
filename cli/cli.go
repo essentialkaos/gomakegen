@@ -45,7 +45,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "2.2.0"
+	VER  = "2.3.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -152,7 +152,7 @@ func Init(gitRev string, gomod []byte) {
 		showAbout(gitRev)
 		return
 	case options.GetB(OPT_VERB_VER):
-		support.ShowSupportInfo(APP, VER, gitRev, gomod)
+		support.Print(APP, VER, gitRev, gomod)
 		return
 	case options.GetB(OPT_HELP) || len(args) == 0:
 		showUsage()
@@ -217,9 +217,9 @@ func filterSources(sources []string) []string {
 func exportMakefile(makefile *Makefile) {
 	switch {
 	case makefile.DepUsed:
-		fmtc.Println("{r}▲ Warning! Dep is deprecated and must not be used for new projects.{!}\n")
+		fmtc.Println("{r}▲ Warning! Dep is deprecated and should not be used for new projects.{!}\n")
 	case makefile.GlideUsed:
-		fmtc.Println("{r}▲ Warning! Glide is deprecated and must not be used for new projects.{!}\n")
+		fmtc.Println("{r}▲ Warning! Glide is deprecated and should not be used for new projects.{!}\n")
 	}
 
 	err := ioutil.WriteFile(options.GetS(OPT_OUTPUT), makefile.Render(), 0644)
@@ -1056,7 +1056,7 @@ func (m *Makefile) getModTarget() string {
 	result += "\tgo mod init\n"
 	result += "endif\n\n"
 	result += "ifdef COMPAT ## Compatible Go version (String)\n"
-	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)\n"
+	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT) -go=$(COMPAT)\n"
 	result += "else\n"
 	result += "\tgo mod tidy $(VERBOSE_FLAG)\n"
 	result += "endif\n\n"
@@ -1157,6 +1157,10 @@ func (m *Makefile) getDefaultVariables() string {
 	result += "VERBOSE_FLAG = -v\n"
 	result += "endif\n\n"
 
+	if m.ModUsed {
+		result += "COMPAT ?= 1.18\n"
+	}
+
 	result += "MAKEDIR = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))\n"
 	result += "GITREV ?= $(shell test -s $(MAKEDIR)/.git && git rev-parse --short HEAD)\n\n"
 
@@ -1195,8 +1199,8 @@ func getGoVersion() version.Version {
 	return ver
 }
 
-// getOptionName parse option name in options package notation
-// and retunr long option name
+// getOptionName parses option name in options package notation
+// and returns long option name
 func getOptionName(opt string) string {
 	longOpt, _ := options.ParseOptionName(opt)
 	return longOpt
@@ -1263,7 +1267,7 @@ func genMan() int {
 
 // genUsage generates usage info
 func genUsage() *usage.Info {
-	info := usage.NewInfo("", "dir")
+	info := usage.NewInfo("", "source-dir")
 
 	info.AddOption(OPT_GLIDE, "Add target to fetching dependencies with glide")
 	info.AddOption(OPT_DEP, "Add target to fetching dependencies with dep")
