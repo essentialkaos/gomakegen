@@ -10,7 +10,6 @@ package cli
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -228,7 +227,7 @@ func exportMakefile(makefile *Makefile) {
 		fmtc.Println("{r}▲ Warning! Glide is deprecated and should not be used for new projects.{!}\n")
 	}
 
-	err := ioutil.WriteFile(options.GetS(OPT_OUTPUT), makefile.Render(), 0644)
+	err := os.WriteFile(options.GetS(OPT_OUTPUT), makefile.Render(), 0644)
 
 	if err != nil {
 		printError(err.Error())
@@ -396,7 +395,7 @@ func cleanupBinaries(binaries []string) []string {
 	var result []string
 
 	for _, bin := range binaries {
-		result = append(result, strings.Replace(bin, ".go", "", -1))
+		result = append(result, strings.TrimSuffix(bin, ".go"))
 	}
 
 	return result
@@ -605,7 +604,7 @@ func extractOptionsFromMakefile(file string) string {
 			continue
 		}
 
-		return strings.Replace(text, "# gomakegen ", "", -1)
+		return strutil.Exclude(text, "# gomakegen ")
 	}
 
 	return ""
@@ -943,7 +942,7 @@ func (m *Makefile) getFuzzTarget() string {
 		if pkg == "." {
 			result += fmt.Sprintf("\tgo-fuzz-build -o fuzz.zip %s\n", m.PkgBase)
 		} else {
-			pkgName := strings.Replace(pkg, "/", "-", -1)
+			pkgName := strings.ReplaceAll(pkg, "/", "-")
 			binName := pkgName + "-fuzz.zip"
 
 			result += fmt.Sprintf("\tgo-fuzz-build -o %s %s/%s\n", binName, m.PkgBase, pkg)
