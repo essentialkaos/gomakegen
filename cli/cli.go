@@ -2,7 +2,7 @@ package cli
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 //                                                                                    //
-//                         Copyright (c) 2023 ESSENTIAL KAOS                          //
+//                         Copyright (c) 2024 ESSENTIAL KAOS                          //
 //      Apache License, Version 2.0 <https://www.apache.org/licenses/LICENSE-2.0>     //
 //                                                                                    //
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -10,7 +10,6 @@ package cli
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,6 +28,9 @@ import (
 	"github.com/essentialkaos/ek/v12/path"
 	"github.com/essentialkaos/ek/v12/sliceutil"
 	"github.com/essentialkaos/ek/v12/strutil"
+	"github.com/essentialkaos/ek/v12/support"
+	"github.com/essentialkaos/ek/v12/support/apps"
+	"github.com/essentialkaos/ek/v12/support/deps"
 	"github.com/essentialkaos/ek/v12/usage"
 	"github.com/essentialkaos/ek/v12/usage/completion/bash"
 	"github.com/essentialkaos/ek/v12/usage/completion/fish"
@@ -36,8 +38,6 @@ import (
 	"github.com/essentialkaos/ek/v12/usage/man"
 	"github.com/essentialkaos/ek/v12/usage/update"
 	"github.com/essentialkaos/ek/v12/version"
-
-	"github.com/essentialkaos/gomakegen/support"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -45,7 +45,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "2.3.0"
+	VER  = "2.3.1"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -109,8 +109,8 @@ var optMap = options.Map{
 	OPT_BENCHMARK: {Type: options.BOOL},
 	OPT_RACE:      {Type: options.BOOL},
 	OPT_NO_COLOR:  {Type: options.BOOL},
-	OPT_HELP:      {Type: options.BOOL, Alias: "u:usage"},
-	OPT_VER:       {Type: options.BOOL, Alias: "ver"},
+	OPT_HELP:      {Type: options.BOOL},
+	OPT_VER:       {Type: options.MIXED},
 
 	OPT_VERB_VER:     {Type: options.BOOL},
 	OPT_COMPLETION:   {},
@@ -147,16 +147,21 @@ func Init(gitRev string, gomod []byte) {
 	case options.Has(OPT_COMPLETION):
 		os.Exit(genCompletion())
 	case options.Has(OPT_GENERATE_MAN):
-		os.Exit(genMan())
+		printMan()
+		os.Exit(0)
 	case options.GetB(OPT_VER):
-		showAbout(gitRev)
-		return
+		genAbout(gitRev).Print(options.GetS(OPT_VER))
+		os.Exit(0)
 	case options.GetB(OPT_VERB_VER):
-		support.Print(APP, VER, gitRev, gomod)
-		return
+		support.Collect(APP, VER).
+			WithRevision(gitRev).
+			WithDeps(deps.Extract(gomod)).
+			WithApps(apps.Golang()).
+			Print()
+		os.Exit(0)
 	case options.GetB(OPT_HELP) || len(args) == 0:
-		showUsage()
-		return
+		genUsage().Print()
+		os.Exit(0)
 	}
 
 	dir := args.Get(0).Clean().String()
@@ -222,7 +227,7 @@ func exportMakefile(makefile *Makefile) {
 		fmtc.Println("{r}▲ Warning! Glide is deprecated and should not be used for new projects.{!}\n")
 	}
 
-	err := ioutil.WriteFile(options.GetS(OPT_OUTPUT), makefile.Render(), 0644)
+	err := os.WriteFile(options.GetS(OPT_OUTPUT), makefile.Render(), 0644)
 
 	if err != nil {
 		printError(err.Error())
@@ -390,7 +395,7 @@ func cleanupBinaries(binaries []string) []string {
 	var result []string
 
 	for _, bin := range binaries {
-		result = append(result, strings.Replace(bin, ".go", "", -1))
+		result = append(result, strings.TrimSuffix(bin, ".go"))
 	}
 
 	return result
@@ -599,7 +604,7 @@ func extractOptionsFromMakefile(file string) string {
 			continue
 		}
 
-		return strings.Replace(text, "# gomakegen ", "", -1)
+		return strutil.Exclude(text, "# gomakegen ")
 	}
 
 	return ""
@@ -937,7 +942,7 @@ func (m *Makefile) getFuzzTarget() string {
 		if pkg == "." {
 			result += fmt.Sprintf("\tgo-fuzz-build -o fuzz.zip %s\n", m.PkgBase)
 		} else {
-			pkgName := strings.Replace(pkg, "/", "-", -1)
+			pkgName := strings.ReplaceAll(pkg, "/", "-")
 			binName := pkgName + "-fuzz.zip"
 
 			result += fmt.Sprintf("\tgo-fuzz-build -o %s %s/%s\n", binName, m.PkgBase, pkg)
@@ -1191,7 +1196,7 @@ func getGoVersion() version.Version {
 		return version.Version{}
 	}
 
-	rawVersion := strutil.ReadField(string(output), 2, false, " ")
+	rawVersion := strutil.ReadField(string(output), 2, false, ' ')
 	rawVersion = strutil.Exclude(rawVersion, "go")
 
 	ver, _ := version.Parse(rawVersion)
@@ -1225,27 +1230,17 @@ func printWarn(f string, a ...interface{}) {
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
-// showUsage prints usage info
-func showUsage() {
-	genUsage().Render()
-}
-
-// showAbout prints info about version
-func showAbout(gitRev string) {
-	genAbout(gitRev).Render()
-}
-
 // genCompletion generates completion for different shells
 func genCompletion() int {
 	info := genUsage()
 
 	switch options.GetS(OPT_COMPLETION) {
 	case "bash":
-		fmt.Printf(bash.Generate(info, "gomakegen"))
+		fmt.Print(bash.Generate(info, "gomakegen"))
 	case "fish":
-		fmt.Printf(fish.Generate(info, "gomakegen"))
+		fmt.Print(fish.Generate(info, "gomakegen"))
 	case "zsh":
-		fmt.Printf(zsh.Generate(info, optMap, "gomakegen"))
+		fmt.Print(zsh.Generate(info, optMap, "gomakegen"))
 	default:
 		return 1
 	}
@@ -1253,16 +1248,14 @@ func genCompletion() int {
 	return 0
 }
 
-// genMan generates man page
-func genMan() int {
+// printMan prints man page
+func printMan() {
 	fmt.Println(
 		man.Generate(
 			genUsage(),
 			genAbout(""),
 		),
 	)
-
-	return 0
 }
 
 // genUsage generates usage info
@@ -1300,17 +1293,17 @@ func genUsage() *usage.Info {
 // genAbout generates info about version
 func genAbout(gitRev string) *usage.About {
 	about := &usage.About{
-		App:           APP,
-		Version:       VER,
-		Desc:          DESC,
-		Year:          2009,
-		Owner:         "ESSENTIAL KAOS",
-		License:       "Apache License, Version 2.0 <https://www.apache.org/licenses/LICENSE-2.0>",
-		UpdateChecker: usage.UpdateChecker{"essentialkaos/gomakegen", update.GitHubChecker},
+		App:     APP,
+		Version: VER,
+		Desc:    DESC,
+		Year:    2009,
+		Owner:   "ESSENTIAL KAOS",
+		License: "Apache License, Version 2.0 <https://www.apache.org/licenses/LICENSE-2.0>",
 	}
 
 	if gitRev != "" {
 		about.Build = "git:" + gitRev
+		about.UpdateChecker = usage.UpdateChecker{"essentialkaos/gomakegen", update.GitHubChecker}
 	}
 
 	return about
