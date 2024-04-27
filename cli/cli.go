@@ -45,7 +45,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "2.3.2"
+	VER  = "2.4.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -1075,6 +1075,7 @@ func (m *Makefile) getModTarget() string {
 	result += "else\n"
 	result += "\tgo get -u $(VERBOSE_FLAG) ./...\n"
 	result += "endif\n\n"
+	result += "\tgrep -q 'toolchain ' go.mod && go mod edit -toolchain=none\n\n"
 	result += "ifdef COMPAT\n"
 	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)\n"
 	result += "else\n"
@@ -1160,16 +1161,12 @@ func (m *Makefile) getGenerationComment() string {
 func (m *Makefile) getDefaultVariables() string {
 	var result string
 
-	if m.ModUsed {
-		result += "export GO111MODULE=on\n\n"
-	}
-
 	result += "ifdef VERBOSE ## Print verbose information (Flag)\n"
 	result += "VERBOSE_FLAG = -v\n"
 	result += "endif\n\n"
 
 	if m.ModUsed {
-		result += "COMPAT ?= 1.18\n"
+		result += "COMPAT ?= 1.19\n"
 	}
 
 	result += "MAKEDIR = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))\n"
