@@ -61,7 +61,7 @@ else
 	go get -u $(VERBOSE_FLAG) ./...
 endif
 
-	grep -q 'toolchain ' go.mod && go mod edit -toolchain=none
+	grep -q 'toolchain ' go.mod && go mod edit -toolchain=none || :
 
 ifdef COMPAT
 	go mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)

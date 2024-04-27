@@ -31,6 +31,7 @@ import (
 	"github.com/essentialkaos/ek/v12/support"
 	"github.com/essentialkaos/ek/v12/support/apps"
 	"github.com/essentialkaos/ek/v12/support/deps"
+	"github.com/essentialkaos/ek/v12/terminal"
 	"github.com/essentialkaos/ek/v12/usage"
 	"github.com/essentialkaos/ek/v12/usage/completion/bash"
 	"github.com/essentialkaos/ek/v12/usage/completion/fish"
@@ -132,13 +133,9 @@ func Init(gitRev string, gomod []byte) {
 
 	args, errs := options.Parse(optMap)
 
-	if len(errs) != 0 {
-		printError("Options parsing errors:")
-
-		for _, err := range errs {
-			printError("  %v", err)
-		}
-
+	if !errs.IsEmpty() {
+		terminal.Error("Options parsing errors:")
+		terminal.Error(errs.String())
 		os.Exit(1)
 	}
 
@@ -183,7 +180,7 @@ func checkDir(dir string) {
 	err := fsutil.ValidatePerms("DRX", dir)
 
 	if err != nil {
-		printWarn(err.Error())
+		terminal.Warn(err)
 		os.Exit(1)
 	}
 }
@@ -231,7 +228,7 @@ func exportMakefile(makefile *Makefile) {
 	err := os.WriteFile(options.GetS(OPT_OUTPUT), makefile.Render(), 0644)
 
 	if err != nil {
-		printError(err.Error())
+		terminal.Error(err)
 		os.Exit(1)
 	}
 
@@ -409,7 +406,7 @@ func extractImports(source, dir string) ([]string, bool) {
 	f, err := parser.ParseFile(fset, file, nil, parser.ImportsOnly)
 
 	if err != nil {
-		printError(err.Error())
+		terminal.Error(err)
 		os.Exit(1)
 	}
 
@@ -434,7 +431,7 @@ func hasFuzzTests(source, dir string) bool {
 	f, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
 
 	if err != nil {
-		printError(err.Error())
+		terminal.Error(err)
 		os.Exit(1)
 	}
 
@@ -1075,7 +1072,7 @@ func (m *Makefile) getModTarget() string {
 	result += "else\n"
 	result += "\tgo get -u $(VERBOSE_FLAG) ./...\n"
 	result += "endif\n\n"
-	result += "\tgrep -q 'toolchain ' go.mod && go mod edit -toolchain=none\n\n"
+	result += "\tgrep -q 'toolchain ' go.mod && go mod edit -toolchain=none || :\n\n"
 	result += "ifdef COMPAT\n"
 	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)\n"
 	result += "else\n"
@@ -1221,18 +1218,6 @@ func getSeparator() string {
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
-// printError prints error message to console
-func printError(f string, a ...interface{}) {
-	fmtc.Fprintf(os.Stderr, "{r}"+f+"{!}\n", a...)
-}
-
-// printError prints warning message to console
-func printWarn(f string, a ...interface{}) {
-	fmtc.Fprintf(os.Stderr, "{y}"+f+"{!}\n", a...)
-}
-
-// ////////////////////////////////////////////////////////////////////////////////// //
-
 // genCompletion generates completion for different shells
 func genCompletion() int {
 	info := genUsage()
@@ -1253,12 +1238,7 @@ func genCompletion() int {
 
 // printMan prints man page
 func printMan() {
-	fmt.Println(
-		man.Generate(
-			genUsage(),
-			genAbout(""),
-		),
-	)
+	fmt.Println(man.Generate(genUsage(), genAbout("")))
 }
 
 // genUsage generates usage info
