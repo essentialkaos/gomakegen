@@ -31,6 +31,8 @@ import (
 	"github.com/essentialkaos/ek/v12/support"
 	"github.com/essentialkaos/ek/v12/support/apps"
 	"github.com/essentialkaos/ek/v12/support/deps"
+	"github.com/essentialkaos/ek/v12/terminal"
+	"github.com/essentialkaos/ek/v12/terminal/tty"
 	"github.com/essentialkaos/ek/v12/usage"
 	"github.com/essentialkaos/ek/v12/usage/completion/bash"
 	"github.com/essentialkaos/ek/v12/usage/completion/fish"
@@ -45,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "2.3.2"
+	VER  = "3.0.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -125,20 +127,20 @@ var checkPackageImports = []string{
 	"gopkg.in/check.v1",
 }
 
+var colorTagApp, colorTagVer string
+
 // ////////////////////////////////////////////////////////////////////////////////// //
 
 func Init(gitRev string, gomod []byte) {
 	runtime.GOMAXPROCS(2)
 
+	preConfigureUI()
+
 	args, errs := options.Parse(optMap)
 
-	if len(errs) != 0 {
-		printError("Options parsing errors:")
-
-		for _, err := range errs {
-			printError("  %v", err)
-		}
-
+	if !errs.IsEmpty() {
+		terminal.Error("Options parsing errors:")
+		terminal.Error(errs.String())
 		os.Exit(1)
 	}
 
@@ -171,6 +173,21 @@ func Init(gitRev string, gomod []byte) {
 	process(dir)
 }
 
+func preConfigureUI() {
+	if !tty.IsTTY() {
+		fmtc.DisableColors = true
+	}
+
+	switch {
+	case fmtc.IsTrueColorSupported():
+		colorTagApp, colorTagVer = "{*}{#00ADD8}", "{#5DC9E2}"
+	case fmtc.Is256ColorsSupported():
+		colorTagApp, colorTagVer = "{*}{#38}", "{#74}"
+	default:
+		colorTagApp, colorTagVer = "{*}{c}", "{c}"
+	}
+}
+
 // configureUI configures user interface
 func configureUI() {
 	if options.GetB(OPT_NO_COLOR) {
@@ -183,7 +200,7 @@ func checkDir(dir string) {
 	err := fsutil.ValidatePerms("DRX", dir)
 
 	if err != nil {
-		printWarn(err.Error())
+		terminal.Warn(err)
 		os.Exit(1)
 	}
 }
@@ -231,7 +248,7 @@ func exportMakefile(makefile *Makefile) {
 	err := os.WriteFile(options.GetS(OPT_OUTPUT), makefile.Render(), 0644)
 
 	if err != nil {
-		printError(err.Error())
+		terminal.Error(err)
 		os.Exit(1)
 	}
 
@@ -409,7 +426,7 @@ func extractImports(source, dir string) ([]string, bool) {
 	f, err := parser.ParseFile(fset, file, nil, parser.ImportsOnly)
 
 	if err != nil {
-		printError(err.Error())
+		terminal.Error(err)
 		os.Exit(1)
 	}
 
@@ -434,7 +451,7 @@ func hasFuzzTests(source, dir string) bool {
 	f, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
 
 	if err != nil {
-		printError(err.Error())
+		terminal.Error(err)
 		os.Exit(1)
 	}
 
@@ -750,15 +767,16 @@ func (m *Makefile) getBinTarget() string {
 
 	result := "all: " + strings.Join(m.Binaries, " ") + " ## Build all binaries\n\n"
 
-	for _, bin := range m.Binaries {
+	for i, bin := range m.Binaries {
 		result += bin + ":\n"
+		result += getActionText(i+1, len(m.Binaries), "Building "+bin+"…")
 
 		ldFlags := m.getLDFlags()
 
 		if ldFlags != "" {
-			result += "\tgo build $(VERBOSE_FLAG) -ldflags=\"" + ldFlags + "\" " + bin + ".go\n"
+			result += "\t@go build $(VERBOSE_FLAG) -ldflags=\"" + ldFlags + "\" " + bin + ".go\n"
 		} else {
-			result += "\tgo build $(VERBOSE_FLAG) " + bin + ".go\n"
+			result += "\t@go build $(VERBOSE_FLAG) " + bin + ".go\n"
 		}
 
 		result += "\n"
@@ -774,9 +792,10 @@ func (m *Makefile) getInstallTarget() string {
 	}
 
 	result := "install: ## Install all binaries\n"
+	result += getActionText(1, 1, "Installing binaries…")
 
 	for _, bin := range m.Binaries {
-		result += "\tcp " + bin + " /usr/bin/" + bin + "\n"
+		result += "\t@cp " + bin + " /usr/bin/" + bin + "\n"
 	}
 
 	return result + "\n"
@@ -789,9 +808,10 @@ func (m *Makefile) getUninstallTarget() string {
 	}
 
 	result := "uninstall: ## Uninstall all binaries\n"
+	result += getActionText(1, 1, "Removing installed binaries…")
 
 	for _, bin := range m.Binaries {
-		result += "\trm -f /usr/bin/" + bin + "\n"
+		result += "\t@rm -f /usr/bin/" + bin + "\n"
 	}
 
 	return result + "\n"
@@ -839,7 +859,7 @@ func (m *Makefile) getDepsTarget() string {
 	}
 
 	for _, pkg := range m.BaseImports {
-		result += "\tgo get -d $(VERBOSE_FLAG) " + pkg + "\n"
+		result += "\t@go get -d $(VERBOSE_FLAG) " + pkg + "\n"
 	}
 
 	return result + "\n"
@@ -871,7 +891,8 @@ func (m *Makefile) getUpdateTarget() string {
 	}
 
 	result := "update: ## Update dependencies to the latest versions\n"
-	result += "\tgo get -d -u $(VERBOSE_FLAG) ./...\n\n"
+	result += getActionText(1, 1, "Updating dependencies…")
+	result += "\t@go get -d -u $(VERBOSE_FLAG) ./...\n\n"
 
 	return result
 }
@@ -888,12 +909,12 @@ func (m *Makefile) getTestDepsTarget() string {
 		return ""
 	}
 
-	result := "deps-test: "
-	result += "## Download dependencies for tests\n"
+	result := "deps-test: ## Download dependencies for tests\n"
+	result += getActionText(1, 1, "Downloading tests dependencies…")
 
 	if !pkgMngUsed {
 		for _, pkg := range m.TestImports {
-			result += "\tgo get -d $(VERBOSE_FLAG) " + pkg + "\n"
+			result += "\t@go get -d $(VERBOSE_FLAG) " + pkg + "\n"
 		}
 	}
 
@@ -912,7 +933,7 @@ func (m *Makefile) getTestTarget() string {
 		targets = strings.Join(m.TestPaths, " ")
 	}
 
-	testTarget := "\tgo test $(VERBOSE_FLAG)"
+	testTarget := "\t@go test $(VERBOSE_FLAG)"
 
 	if m.Race {
 		testTarget += " -race -covermode=atomic"
@@ -921,6 +942,7 @@ func (m *Makefile) getTestTarget() string {
 	}
 
 	result := "test: ## Run tests\n"
+	result += getActionText(1, 1, "Starting tests…")
 	result += "ifdef COVERAGE_FILE ## Save coverage data into file (String)\n"
 	result += "\t" + testTarget + " -coverprofile=$(COVERAGE_FILE) " + targets + "\n"
 	result += "else\n"
@@ -939,16 +961,17 @@ func (m *Makefile) getFuzzTarget() string {
 	}
 
 	result := "gen-fuzz: ## Generate archives for fuzz testing\n"
-	result += "\twhich go-fuzz-build &>/dev/null || go get -u -v github.com/dvyukov/go-fuzz/go-fuzz-build\n"
+	result += "\t@which go-fuzz-build &>/dev/null || go get -u -v github.com/dvyukov/go-fuzz/go-fuzz-build\n"
+	result += getActionText(1, 1, "Generating fuzzing data…")
 
 	for _, pkg := range m.FuzzPaths {
 		if pkg == "." {
-			result += fmt.Sprintf("\tgo-fuzz-build -o fuzz.zip %s\n", m.PkgBase)
+			result += fmt.Sprintf("\t@go-fuzz-build -o fuzz.zip %s\n", m.PkgBase)
 		} else {
 			pkgName := strings.ReplaceAll(pkg, "/", "-")
 			binName := pkgName + "-fuzz.zip"
 
-			result += fmt.Sprintf("\tgo-fuzz-build -o %s %s/%s\n", binName, m.PkgBase, pkg)
+			result += fmt.Sprintf("\t@go-fuzz-build -o %s %s/%s\n", binName, m.PkgBase, pkg)
 		}
 	}
 
@@ -962,11 +985,12 @@ func (m *Makefile) getBenchTarget() string {
 	}
 
 	result := "benchmark: ## Run benchmarks\n"
+	result += getActionText(1, 1, "Starting benchmarks…")
 
 	if containsPackage(m.TestImports, checkPackageImports) {
-		result += "\tgo test -check.v -check.b -check.bmem\n"
+		result += "\t@go test -check.v -check.b -check.bmem\n"
 	} else {
-		result += "\tgo test -bench=.\n"
+		result += "\t@go test -bench=.\n"
 	}
 
 	return result + "\n"
@@ -975,7 +999,8 @@ func (m *Makefile) getBenchTarget() string {
 // getFmtTarget generates target for "fmt" command
 func (m *Makefile) getFmtTarget() string {
 	result := "fmt: ## Format source code with gofmt\n"
-	result += "\tfind . -name \"*.go\" -exec gofmt -s -w {} \\;\n"
+	result += getActionText(1, 1, "Formatting sources…")
+	result += "\t@find . -name \"*.go\" -exec gofmt -s -w {} \\;\n"
 
 	return result + "\n"
 }
@@ -983,7 +1008,8 @@ func (m *Makefile) getFmtTarget() string {
 // getVetTarget generates target for "vet" command
 func (m *Makefile) getVetTarget() string {
 	result := "vet: ## Runs 'go vet' over sources\n"
-	result += "\tgo vet -composites=false -printfuncs=LPrintf,TLPrintf,TPrintf,log.Debug,log.Info,log.Warn,log.Error,log.Critical,log.Print ./...\n"
+	result += getActionText(1, 1, "Running 'go vet' over sources…")
+	result += "\t@go vet -composites=false -printfuncs=LPrintf,TLPrintf,TPrintf,log.Debug,log.Info,log.Warn,log.Error,log.Critical,log.Print ./...\n"
 
 	return result + "\n"
 }
@@ -995,9 +1021,10 @@ func (m *Makefile) getCleanTarget() string {
 	}
 
 	result := "clean: ## Remove generated files\n"
+	result += getActionText(1, 1, "Removing built binaries…")
 
 	for _, bin := range m.Binaries {
-		result += "\trm -f " + bin + "\n"
+		result += "\t@rm -f " + bin + "\n"
 	}
 
 	return result + "\n"
@@ -1011,20 +1038,23 @@ func (m *Makefile) getGlideTarget() string {
 	}
 
 	result := "glide-create:\n"
-	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
-	result += "\tglide init\n"
+	result += getActionText(1, 1, "Glide initialization…")
+	result += "\t@which glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
+	result += "\t@glide init\n"
 	result += "\n"
 
 	result += "glide-install:\n"
-	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
-	result += "\ttest -s glide.yaml || glide init\n"
-	result += "\tglide install\n"
+	result += getActionText(1, 1, "Installing dependencies…")
+	result += "\t@which glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
+	result += "\t@test -s glide.yaml || glide init\n"
+	result += "\t@glide install\n"
 	result += "\n"
 
 	result += "glide-update:\n"
-	result += "\twhich glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
-	result += "\ttest -s glide.yaml || glide init\n"
-	result += "\tglide update\n\n"
+	result += getActionText(1, 1, "Updating dependencies…")
+	result += "\t@which glide &>/dev/null || (echo -e '\\e[31mGlide is not installed\\e[0m' ; exit 1)\n"
+	result += "\t@test -s glide.yaml || glide init\n"
+	result += "\t@glide update\n\n"
 
 	return result
 }
@@ -1036,17 +1066,20 @@ func (m *Makefile) getDepTarget() string {
 	}
 
 	result := "dep-init:\n"
-	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
-	result += "\tdep init\n\n"
+	result += getActionText(1, 1, "Dep initialization…")
+	result += "\t@which dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
+	result += "\t@dep init\n\n"
 
 	result += "dep-update:\n"
-	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
-	result += "\ttest -s Gopkg.toml || dep init\n"
-	result += "\ttest -s Gopkg.lock && dep ensure -update || dep ensure\n\n"
+	result += getActionText(1, 1, "Updating dependencies…")
+	result += "\t@which dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
+	result += "\t@test -s Gopkg.toml || dep init\n"
+	result += "\t@test -s Gopkg.lock && dep ensure -update || dep ensure\n\n"
 
 	result += "dep-vendor:\n"
-	result += "\twhich dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
-	result += "\tdep ensure\n\n"
+	result += getActionText(1, 1, "Vendoring dependencies…")
+	result += "\t@which dep &>/dev/null || go get -u -v github.com/golang/dep/cmd/dep\n"
+	result += "\t@dep ensure\n\n"
 
 	return result
 }
@@ -1058,35 +1091,44 @@ func (m *Makefile) getModTarget() string {
 	}
 
 	result := "mod-init:\n"
+	result += getActionText(1, 2, "Modules initialization…")
 	result += "ifdef MODULE_PATH ## Module path for initialization (String)\n"
-	result += "\tgo mod init $(MODULE_PATH)\n"
+	result += "\t@go mod init $(MODULE_PATH)\n"
 	result += "else\n"
-	result += "\tgo mod init\n"
+	result += "\t@go mod init\n"
 	result += "endif\n\n"
+	result += getActionText(2, 2, "Dependencies cleanup…")
 	result += "ifdef COMPAT ## Compatible Go version (String)\n"
-	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT) -go=$(COMPAT)\n"
+	result += "\t@go mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT) -go=$(COMPAT)\n"
 	result += "else\n"
-	result += "\tgo mod tidy $(VERBOSE_FLAG)\n"
+	result += "\t@go mod tidy $(VERBOSE_FLAG)\n"
 	result += "endif\n\n"
 
 	result += "mod-update:\n"
+	result += getActionText(1, 4, "Updating dependencies…")
 	result += "ifdef UPDATE_ALL ## Update all dependencies (Flag)\n"
-	result += "\tgo get -u $(VERBOSE_FLAG) all\n"
+	result += "\t@go get -u $(VERBOSE_FLAG) all\n"
 	result += "else\n"
-	result += "\tgo get -u $(VERBOSE_FLAG) ./...\n"
+	result += "\t@go get -u $(VERBOSE_FLAG) ./...\n"
 	result += "endif\n\n"
+	result += getActionText(2, 4, "Stripping toolchain info…")
+	result += "\t@grep -q 'toolchain ' go.mod && go mod edit -toolchain=none || :\n\n"
+	result += getActionText(3, 4, "Dependencies cleanup…")
 	result += "ifdef COMPAT\n"
-	result += "\tgo mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)\n"
+	result += "\t@go mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT)\n"
 	result += "else\n"
-	result += "\tgo mod tidy $(VERBOSE_FLAG)\n"
+	result += "\t@go mod tidy $(VERBOSE_FLAG)\n"
 	result += "endif\n\n"
-	result += "\ttest -d vendor && rm -rf vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
+	result += getActionText(4, 4, "Updating vendored dependencies…")
+	result += "\t@test -d vendor && rm -rf vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
 
 	result += "mod-download:\n"
-	result += "\tgo mod download\n\n"
+	result += getActionText(1, 1, "Downloading dependencies…")
+	result += "\t@go mod download\n\n"
 
 	result += "mod-vendor:\n"
-	result += "\trm -rf vendor && go mod vendor $(VERBOSE_FLAG)\n\n"
+	result += getActionText(1, 1, "Vendoring dependencies…")
+	result += "\t@rm -rf vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
 
 	m.MaxOptionNameSize = mathutil.Max(m.MaxOptionNameSize, len("MODULE_PATH"))
 
@@ -1160,16 +1202,12 @@ func (m *Makefile) getGenerationComment() string {
 func (m *Makefile) getDefaultVariables() string {
 	var result string
 
-	if m.ModUsed {
-		result += "export GO111MODULE=on\n\n"
-	}
-
 	result += "ifdef VERBOSE ## Print verbose information (Flag)\n"
 	result += "VERBOSE_FLAG = -v\n"
 	result += "endif\n\n"
 
 	if m.ModUsed {
-		result += "COMPAT ?= 1.18\n"
+		result += "COMPAT ?= 1.19\n"
 	}
 
 	result += "MAKEDIR = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))\n"
@@ -1192,6 +1230,11 @@ func (m *Makefile) getLDFlags() string {
 }
 
 // ////////////////////////////////////////////////////////////////////////////////// //
+
+// getActionText generates command with action description
+func getActionText(cur, total int, text string) string {
+	return fmtc.Sprintf("\t@echo \"{s}[%d/%d]{!} {c*}%s{!}\"\n", cur, total, text)
+}
 
 // getGoVersion returns current go version
 func getGoVersion() version.Version {
@@ -1224,18 +1267,6 @@ func getSeparator() string {
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 
-// printError prints error message to console
-func printError(f string, a ...interface{}) {
-	fmtc.Fprintf(os.Stderr, "{r}"+f+"{!}\n", a...)
-}
-
-// printError prints warning message to console
-func printWarn(f string, a ...interface{}) {
-	fmtc.Fprintf(os.Stderr, "{y}"+f+"{!}\n", a...)
-}
-
-// ////////////////////////////////////////////////////////////////////////////////// //
-
 // genCompletion generates completion for different shells
 func genCompletion() int {
 	info := genUsage()
@@ -1256,17 +1287,14 @@ func genCompletion() int {
 
 // printMan prints man page
 func printMan() {
-	fmt.Println(
-		man.Generate(
-			genUsage(),
-			genAbout(""),
-		),
-	)
+	fmt.Println(man.Generate(genUsage(), genAbout("")))
 }
 
 // genUsage generates usage info
 func genUsage() *usage.Info {
 	info := usage.NewInfo("", "source-dir")
+
+	info.AppNameColorTag = colorTagApp
 
 	info.AddOption(OPT_GLIDE, "Add target to fetching dependencies with glide")
 	info.AddOption(OPT_DEP, "Add target to fetching dependencies with dep")
@@ -1304,6 +1332,11 @@ func genAbout(gitRev string) *usage.About {
 		Desc:    DESC,
 		Year:    2009,
 		Owner:   "ESSENTIAL KAOS",
+
+		AppNameColorTag: colorTagApp,
+		VersionColorTag: colorTagVer,
+		DescSeparator:   "{s}—{!}",
+
 		License: "Apache License, Version 2.0 <https://www.apache.org/licenses/LICENSE-2.0>",
 	}
 
