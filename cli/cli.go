@@ -47,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.0.0"
+	VER  = "3.0.1"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -1233,7 +1233,11 @@ func (m *Makefile) getLDFlags() string {
 
 // getActionText generates command with action description
 func getActionText(cur, total int, text string) string {
-	return fmtc.Sprintf("\t@echo \"{s}[%d/%d]{!} {c*}%s{!}\"\n", cur, total, text)
+	if total > 1 {
+		return fmtc.Sprintf("\t@echo \"{s}[%d/%d]{!} {c*}%s{!}\"\n", cur, total, text)
+	}
+
+	return fmtc.Sprintf("\t@echo \"{c*}%s{!}\"\n", text)
 }
 
 // getGoVersion returns current go version
