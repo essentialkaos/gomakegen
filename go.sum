@@ -1,8 +1,8 @@
 github.com/essentialkaos/check v1.4.0 h1:kWdFxu9odCxUqo1NNFNJmguGrDHgwi3A8daXX1nkuKk=
 github.com/essentialkaos/depsy v1.1.0 h1:U6dp687UkQwXlZU17Hg2KMxbp3nfZAoZ8duaeUFYvJI=
 github.com/essentialkaos/depsy v1.1.0/go.mod h1:kpiTAV17dyByVnrbNaMcZt2jRwvuXClUYOzpyJQwtG8=
-github.com/essentialkaos/ek/v12 v12.118.0 h1:fosk+jCK9GrrnPiua1O6PQSwrlQ25arwespB6fnbi9g=
-github.com/essentialkaos/ek/v12 v12.118.0/go.mod h1:VVCk0ZA3CB5lPkQ7bUHo/mOBs02jkjMRlLS8ES2TQpw=
+github.com/essentialkaos/ek/v12 v12.119.0 h1:0Awjj7DxHz2i3t1JiF+58dxGqMI94qYy0BA3iezorlI=
+github.com/essentialkaos/ek/v12 v12.119.0/go.mod h1:VVCk0ZA3CB5lPkQ7bUHo/mOBs02jkjMRlLS8ES2TQpw=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDNXVBh4M=

@@ -2,7 +2,7 @@ module github.com/essentialkaos/gomakegen
 
 go 1.19
 
-require github.com/essentialkaos/ek/v12 v12.118.0
+require github.com/essentialkaos/ek/v12 v12.119.0
 
 require (
 	github.com/essentialkaos/depsy v1.1.0 // indirect
