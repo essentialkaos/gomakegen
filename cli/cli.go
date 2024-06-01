@@ -47,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.0.1"
+	VER  = "3.0.2"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -930,10 +930,14 @@ func (m *Makefile) getTestTarget() string {
 	targets := "."
 
 	if m.HasSubpackages {
-		targets = strings.Join(m.TestPaths, " ")
+		if len(m.TestPaths) > 3 {
+			targets = "./..."
+		} else {
+			targets = strings.Join(m.TestPaths, " ")
+		}
 	}
 
-	testTarget := "\t@go test $(VERBOSE_FLAG)"
+	testTarget := "@go test $(VERBOSE_FLAG)"
 
 	if m.Race {
 		testTarget += " -race -covermode=atomic"
