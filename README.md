@@ -59,33 +59,7 @@ gomakegen --generate-man | sudo gzip > /usr/share/man/man1/gomakegen.1.gz
 
 ### Usage
 
-```
-Usage: gomakegen {options} source-dir
-
-Options
-
-  --glide, -g          Add target to fetching dependencies with glide
-  --dep, -d            Add target to fetching dependencies with dep
-  --mod, -m            Add target to fetching dependencies with go mod (default for Go ≥ 1.18)
-  --strip, -S          Strip binaries
-  --benchmark, -B      Add target to run benchmarks
-  --race, -R           Add target to test race conditions
-  --output, -o file    Output file (Makefile by default)
-  --no-color, -nc      Disable colors in output
-  --help, -h           Show this help message
-  --version, -v        Show version
-
-Examples
-
-  gomakegen .
-  Generate makefile for project in current directory and save as Makefile
-
-  gomakegen $GOPATH/src/github.com/profile/project
-  Generate makefile for github.com/profile/project and save as Makefile
-
-  gomakegen $GOPATH/src/github.com/profile/project -o project.make
-  Generate makefile for github.com/profile/project and save as project.make
-```
+<img src=".github/images/usage.svg" />
 
 ### CI Status
 
