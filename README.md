@@ -1,11 +1,11 @@
-<p align="center"><a href="#readme"><img src="https://gh.kaos.st/gomakegen.svg"/></a></p>
+<p align="center"><a href="#readme"><img src=".github/images/card.svg"/></a></p>
 
 <p align="center">
   <a href="https://kaos.sh/w/gomakegen/ci"><img src="https://kaos.sh/w/gomakegen/ci.svg" alt="GitHub Actions CI Status" /></a>
   <a href="https://kaos.sh/w/gomakegen/codeql"><img src="https://kaos.sh/w/gomakegen/codeql.svg" alt="GitHub Actions CodeQL Status" /></a>
   <a href="https://kaos.sh/r/gomakegen"><img src="https://kaos.sh/r/gomakegen.svg" alt="GoReportCard" /></a>
   <a href="https://kaos.sh/b/gomakegen"><img src="https://kaos.sh/b/6f7a19c8-d78d-4062-a8cf-fdac4b8d1f85.svg" alt="Codebeat badge" /></a>
-  <a href="#license"><img src="https://gh.kaos.st/apache2.svg"></a>
+  <a href="#license"><img src=".github/images/license.svg"/></a>
 </p>
 
 <p align="center"><a href="#installation">Installation</a> • <a href="#usage">Usage</a> • <a href="#build-status">Build Status</a> • <a href="#contributing">Contributing</a> • <a href="#license">License</a></p>
@@ -59,7 +59,7 @@ gomakegen --generate-man | sudo gzip > /usr/share/man/man1/gomakegen.1.gz
 
 ### Usage
 
-<img src=".github/images/usage.svg" />
+<p align="center"><img src=".github/images/usage.svg"/></p>
 
 ### CI Status
 
