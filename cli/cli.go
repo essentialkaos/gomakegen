@@ -47,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.0.3"
+	VER  = "3.0.4"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -948,7 +948,7 @@ func (m *Makefile) getTestTarget() string {
 	result := "test: ## Run tests\n"
 	result += getActionText(1, 1, "Starting tests…")
 	result += "ifdef COVERAGE_FILE ## Save coverage data into file (String)\n"
-	result += "\t" + testTarget + " -coverprofile=$(COVERAGE_FILE) " + targets + "\n"
+	result += "\t" + testTarget + " -coverprofile=$(COVERAGE_FILE) " + strings.Join(m.TestPaths, " ") + "\n"
 	result += "else\n"
 	result += "\t" + testTarget + " " + targets + "\n"
 	result += "endif\n\n"
