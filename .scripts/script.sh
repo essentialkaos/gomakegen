@@ -14,7 +14,7 @@ main() {
   sum1=$(checksum "Makefile")
   sum2=$(checksum "Makefile2")
 
-  if [[ "" != "" ]] ; then
+  if [[ "$sum1" != "$sum2" ]] ; then
     echo "Base Makefile differs from generated Makefile"
     exit 1
   fi
