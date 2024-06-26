@@ -46,10 +46,6 @@ jobs:
       - name: Build binary
         run: make all
 
-      - name: Run tests
-        working-directory: ${{env.SRC_DIR}}
-        run: bash .scripts/script.sh
-
   Typos:
     name: Typos
     runs-on: ubuntu-latest

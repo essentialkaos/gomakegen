@@ -47,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.0.4"
+	VER  = "3.0.5"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -548,8 +548,9 @@ func containsPackage(imports []string, pkgs []string) bool {
 
 // getBasePkgPath returns base package path
 func getBasePkgPath(dir string) string {
-	gopath := os.Getenv("GOPATH")
+	gopath, _ := filepath.EvalSymlinks(os.Getenv("GOPATH"))
 	absDir, _ := filepath.Abs(dir)
+	absDir, _ = filepath.EvalSymlinks(absDir)
 
 	return strutil.Exclude(absDir, gopath+"/src/")
 }
@@ -561,10 +562,6 @@ func containsStableImports(imports []string) bool {
 	}
 
 	for _, pkg := range imports {
-		if strings.HasPrefix(pkg, "pkg.re") {
-			return true
-		}
-
 		if strings.HasPrefix(pkg, "gopkg.in") {
 			return true
 		}
@@ -965,7 +962,7 @@ func (m *Makefile) getFuzzTarget() string {
 	}
 
 	result := "gen-fuzz: ## Generate archives for fuzz testing\n"
-	result += "\t@which go-fuzz-build &>/dev/null || go get -u -v github.com/dvyukov/go-fuzz/go-fuzz-build\n"
+	result += "\t@which go-fuzz-build &>/dev/null || go install github.com/dvyukov/go-fuzz/go-fuzz-build@latest\n"
 	result += getActionText(1, 1, "Generating fuzzing data…")
 
 	for _, pkg := range m.FuzzPaths {
@@ -1185,14 +1182,6 @@ func (m *Makefile) getGenerationComment() string {
 
 	if m.Race {
 		result += fmt.Sprintf("--%s ", getOptionName(OPT_RACE))
-	}
-
-	if options.GetS(OPT_OUTPUT) != "Makefile" {
-		result += fmt.Sprintf(
-			"--%s %s ",
-			getOptionName(OPT_OUTPUT),
-			options.GetS(OPT_OUTPUT),
-		)
 	}
 
 	result += ".\n"
