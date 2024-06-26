@@ -1184,14 +1184,6 @@ func (m *Makefile) getGenerationComment() string {
 		result += fmt.Sprintf("--%s ", getOptionName(OPT_RACE))
 	}
 
-	if options.GetS(OPT_OUTPUT) != "Makefile" {
-		result += fmt.Sprintf(
-			"--%s %s ",
-			getOptionName(OPT_OUTPUT),
-			options.GetS(OPT_OUTPUT),
-		)
-	}
-
 	result += ".\n"
 	result += "#\n"
 	result += "# More info: https://kaos.sh/gomakegen\n\n"
