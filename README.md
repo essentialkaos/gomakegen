@@ -2,7 +2,6 @@
 
 <p align="center">
   <a href="https://kaos.sh/r/gomakegen"><img src="https://kaos.sh/r/gomakegen.svg" alt="GoReportCard" /></a>
-  <a href="https://kaos.sh/b/gomakegen"><img src="https://kaos.sh/b/6f7a19c8-d78d-4062-a8cf-fdac4b8d1f85.svg" alt="Codebeat badge" /></a>
   <a href="https://kaos.sh/y/gomakegen"><img src="https://kaos.sh/y/55b2a258de5b4f0b9a75da00802f149d.svg" alt="Codacy badge" /></a>
   <br/>
   <a href="https://kaos.sh/w/gomakegen/ci"><img src="https://kaos.sh/w/gomakegen/ci.svg" alt="GitHub Actions CI Status" /></a>
@@ -18,7 +17,7 @@
 
 ### Installation
 
-To build the `gomakegen` from scratch, make sure you have a working Go 1.21+ workspace (_[instructions](https://go.dev/doc/install)_), then:
+To build the `gomakegen` from scratch, make sure you have a working Go 1.19+ workspace (_[instructions](https://go.dev/doc/install)_), then:
 
 ```
 go install github.com/essentialkaos/gomakegen/v3@latest
