@@ -1,10 +1,10 @@
-module github.com/essentialkaos/gomakegen
+module github.com/essentialkaos/gomakegen/v3
 
-go 1.19
+go 1.21
 
-require github.com/essentialkaos/ek/v12 v12.130.0
+require github.com/essentialkaos/ek/v13 v13.3.1
 
 require (
 	github.com/essentialkaos/depsy v1.3.0 // indirect
-	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/sys v0.23.0 // indirect
 )
