@@ -10,7 +10,7 @@ package main
 import (
 	_ "embed"
 
-	CLI "github.com/essentialkaos/gomakegen/cli"
+	CLI "github.com/essentialkaos/gomakegen/v3/cli"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////// //
