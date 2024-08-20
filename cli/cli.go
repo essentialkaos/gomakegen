@@ -47,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.0.6"
+	VER  = "3.1.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -1197,6 +1197,10 @@ func (m *Makefile) getDefaultVariables() string {
 
 	result += "ifdef VERBOSE ## Print verbose information (Flag)\n"
 	result += "VERBOSE_FLAG = -v\n"
+	result += "endif\n\n"
+
+	result += "ifdef PROXY ## Force proxy usage for downloading dependencies (Flag)\n"
+	result += "export GOPROXY=https://proxy.golang.org/cached-only,direct\n"
 	result += "endif\n\n"
 
 	if m.ModUsed {
