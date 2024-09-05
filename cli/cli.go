@@ -47,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.1.0"
+	VER  = "3.2.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -60,6 +60,7 @@ const (
 	OPT_STRIP     = "S:strip"
 	OPT_BENCHMARK = "B:benchmark"
 	OPT_RACE      = "R:race"
+	OPT_CGO       = "C:cgo"
 	OPT_NO_COLOR  = "nc:no-color"
 	OPT_HELP      = "h:help"
 	OPT_VER       = "v:version"
@@ -92,6 +93,7 @@ type Makefile struct {
 	Benchmark        bool
 	Race             bool
 	Strip            bool
+	CGO              bool
 	HasSubpackages   bool
 	HasStableImports bool
 
@@ -111,6 +113,7 @@ var optMap = options.Map{
 	OPT_STRIP:     {Type: options.BOOL},
 	OPT_BENCHMARK: {Type: options.BOOL},
 	OPT_RACE:      {Type: options.BOOL},
+	OPT_CGO:       {Type: options.BOOL},
 	OPT_NO_COLOR:  {Type: options.BOOL},
 	OPT_HELP:      {Type: options.BOOL},
 	OPT_VER:       {Type: options.MIXED},
@@ -264,6 +267,7 @@ func generateMakefile(sources []string, dir string) *Makefile {
 
 	makefile.Benchmark = makefile.Benchmark || options.GetB(OPT_BENCHMARK)
 	makefile.Race = makefile.Race || options.GetB(OPT_RACE)
+	makefile.CGO = makefile.CGO || options.GetB(OPT_CGO)
 	makefile.Strip = makefile.Strip || options.GetB(OPT_STRIP)
 	makefile.GlideUsed = makefile.GlideUsed || options.GetB(OPT_GLIDE) || fsutil.IsExist(dir+"/glide.yaml")
 	makefile.DepUsed = makefile.DepUsed || options.GetB(OPT_DEP) || fsutil.IsExist(dir+"/Gopkg.toml")
@@ -1184,6 +1188,10 @@ func (m *Makefile) getGenerationComment() string {
 		result += fmt.Sprintf("--%s ", getOptionName(OPT_RACE))
 	}
 
+	if m.CGO {
+		result += fmt.Sprintf("--%s ", getOptionName(OPT_CGO))
+	}
+
 	result += ".\n"
 	result += "#\n"
 	result += "# More info: https://kaos.sh/gomakegen\n\n"
@@ -1202,6 +1210,14 @@ func (m *Makefile) getDefaultVariables() string {
 	result += "ifdef PROXY ## Force proxy usage for downloading dependencies (Flag)\n"
 	result += "export GOPROXY=https://proxy.golang.org/cached-only,direct\n"
 	result += "endif\n\n"
+
+	if m.CGO {
+		result += "export CGO_ENABLED=1\n\n"
+	} else {
+		result += "ifdef CGO ## Enable CGO usage (Flag)\n"
+		result += "export CGO_ENABLED=1\n"
+		result += "endif\n\n"
+	}
 
 	if m.ModUsed {
 		result += "COMPAT ?= 1.19\n"
@@ -1303,6 +1319,7 @@ func genUsage() *usage.Info {
 	info.AddOption(OPT_STRIP, "Strip binaries")
 	info.AddOption(OPT_BENCHMARK, "Add target to run benchmarks")
 	info.AddOption(OPT_RACE, "Add target to test race conditions")
+	info.AddOption(OPT_CGO, "Enable CGO usage")
 	info.AddOption(OPT_OUTPUT, "Output file {s-}(Makefile by default){!}", "file")
 	info.AddOption(OPT_NO_COLOR, "Disable colors in output")
 	info.AddOption(OPT_HELP, "Show this help message")
