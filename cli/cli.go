@@ -1216,6 +1216,8 @@ func (m *Makefile) getDefaultVariables() string {
 	} else {
 		result += "ifdef CGO ## Enable CGO usage (Flag)\n"
 		result += "export CGO_ENABLED=1\n"
+		result += "else\n"
+		result += "export CGO_ENABLED=0\n"
 		result += "endif\n\n"
 	}
 
