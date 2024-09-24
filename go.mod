@@ -1,8 +1,8 @@
 module github.com/essentialkaos/gomakegen/v3
 
-go 1.21
+go 1.22.7
 
-require github.com/essentialkaos/ek/v13 v13.3.5
+require github.com/essentialkaos/ek/v13 v13.5.1
 
 require (
 	github.com/essentialkaos/depsy v1.3.0 // indirect

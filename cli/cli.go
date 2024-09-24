@@ -47,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.2.0"
+	VER  = "3.2.1"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -1220,10 +1220,6 @@ func (m *Makefile) getDefaultVariables() string {
 		result += "else\n"
 		result += "export CGO_ENABLED=0\n"
 		result += "endif\n\n"
-	}
-
-	if m.ModUsed {
-		result += "COMPAT ?= 1.19\n"
 	}
 
 	result += "MAKEDIR = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))\n"
