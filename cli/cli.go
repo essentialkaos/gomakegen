@@ -47,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.2.1"
+	VER  = "3.2.2"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -143,7 +143,7 @@ func Init(gitRev string, gomod []byte) {
 
 	if !errs.IsEmpty() {
 		terminal.Error("Options parsing errors:")
-		terminal.Error(errs.String())
+		terminal.Error(errs.Error("- "))
 		os.Exit(1)
 	}
 
@@ -1096,18 +1096,21 @@ func (m *Makefile) getModTarget() string {
 	}
 
 	result := "mod-init:\n"
-	result += getActionText(1, 2, "Modules initialization…")
+	result += getActionText(1, 3, "Modules initialization…")
+	result += "\t@rm -f go.mod go.sum\n"
 	result += "ifdef MODULE_PATH ## Module path for initialization (String)\n"
 	result += "\t@go mod init $(MODULE_PATH)\n"
 	result += "else\n"
 	result += "\t@go mod init\n"
 	result += "endif\n\n"
-	result += getActionText(2, 2, "Dependencies cleanup…")
+	result += getActionText(2, 3, "Dependencies cleanup…")
 	result += "ifdef COMPAT ## Compatible Go version (String)\n"
 	result += "\t@go mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT) -go=$(COMPAT)\n"
 	result += "else\n"
 	result += "\t@go mod tidy $(VERBOSE_FLAG)\n"
-	result += "endif\n\n"
+	result += "endif\n"
+	result += getActionText(3, 3, "Stripping toolchain info…")
+	result += "\t@grep -q 'toolchain ' go.mod && go mod edit -toolchain=none || :\n\n"
 
 	result += "mod-update:\n"
 	result += getActionText(1, 4, "Updating dependencies…")
