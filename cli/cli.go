@@ -255,7 +255,7 @@ func exportMakefile(makefile *Makefile) {
 		os.Exit(1)
 	}
 
-	fmtc.Printf("{g}Makefile successfully created as {g*}%s{!}\n", options.GetS(OPT_OUTPUT))
+	fmtc.Printfn("{g}Makefile successfully created as {g*}%s{!}", options.GetS(OPT_OUTPUT))
 }
 
 // generateMakefile collects imports, process options and generate makefile struct
@@ -1251,10 +1251,10 @@ func (m *Makefile) getLDFlags() string {
 // getActionText generates command with action description
 func getActionText(cur, total int, text string) string {
 	if total > 1 {
-		return fmtc.Sprintf("\t@echo \"{s}[%d/%d]{!} {c*}%s{!}\"\n", cur, total, text)
+		return fmtc.Sprintfn("\t@echo \"{s}[%d/%d]{!} {c*}%s{!}\"", cur, total, text)
 	}
 
-	return fmtc.Sprintf("\t@echo \"{c*}%s{!}\"\n", text)
+	return fmtc.Sprintfn("\t@echo \"{c*}%s{!}\"", text)
 }
 
 // getGoVersion returns current go version
