@@ -47,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.2.2"
+	VER  = "3.2.3"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -599,6 +599,8 @@ func applyOptionsFromMakefile(file string, m *Makefile) {
 			m.Benchmark = true
 		case getOptionName(OPT_RACE):
 			m.Race = true
+		case getOptionName(OPT_CGO):
+			m.CGO = true
 		}
 	}
 }
