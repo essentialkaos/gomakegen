@@ -3,7 +3,7 @@ module github.com/essentialkaos/gomakegen
 go 1.22.8
 
 require (
-	github.com/essentialkaos/ek/v13 v13.14.0
+	github.com/essentialkaos/ek/v13 v13.14.1
 	github.com/essentialkaos/gomakegen/v3 v3.2.2
 )
 
