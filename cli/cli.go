@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,7 +27,6 @@ import (
 	"github.com/essentialkaos/ek/v13/mathutil"
 	"github.com/essentialkaos/ek/v13/options"
 	"github.com/essentialkaos/ek/v13/path"
-	"github.com/essentialkaos/ek/v13/sliceutil"
 	"github.com/essentialkaos/ek/v13/strutil"
 	"github.com/essentialkaos/ek/v13/support"
 	"github.com/essentialkaos/ek/v13/support/apps"
@@ -542,7 +542,7 @@ func importMapToSlice(imports map[string]bool) []string {
 // containsPackage returns true if imports contains given packages
 func containsPackage(imports []string, pkgs []string) bool {
 	for _, pkg := range pkgs {
-		if sliceutil.Contains(imports, pkg) {
+		if slices.Contains(imports, pkg) {
 			return true
 		}
 	}
