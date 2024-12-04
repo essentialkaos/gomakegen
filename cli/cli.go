@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,7 +27,6 @@ import (
 	"github.com/essentialkaos/ek/v13/mathutil"
 	"github.com/essentialkaos/ek/v13/options"
 	"github.com/essentialkaos/ek/v13/path"
-	"github.com/essentialkaos/ek/v13/sliceutil"
 	"github.com/essentialkaos/ek/v13/strutil"
 	"github.com/essentialkaos/ek/v13/support"
 	"github.com/essentialkaos/ek/v13/support/apps"
@@ -47,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.2.2"
+	VER  = "3.2.3"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -255,7 +255,7 @@ func exportMakefile(makefile *Makefile) {
 		os.Exit(1)
 	}
 
-	fmtc.Printf("{g}Makefile successfully created as {g*}%s{!}\n", options.GetS(OPT_OUTPUT))
+	fmtc.Printfn("{g}Makefile successfully created as {g*}%s{!}", options.GetS(OPT_OUTPUT))
 }
 
 // generateMakefile collects imports, process options and generate makefile struct
@@ -542,7 +542,7 @@ func importMapToSlice(imports map[string]bool) []string {
 // containsPackage returns true if imports contains given packages
 func containsPackage(imports []string, pkgs []string) bool {
 	for _, pkg := range pkgs {
-		if sliceutil.Contains(imports, pkg) {
+		if slices.Contains(imports, pkg) {
 			return true
 		}
 	}
@@ -599,6 +599,8 @@ func applyOptionsFromMakefile(file string, m *Makefile) {
 			m.Benchmark = true
 		case getOptionName(OPT_RACE):
 			m.Race = true
+		case getOptionName(OPT_CGO):
+			m.CGO = true
 		}
 	}
 }
@@ -1249,10 +1251,10 @@ func (m *Makefile) getLDFlags() string {
 // getActionText generates command with action description
 func getActionText(cur, total int, text string) string {
 	if total > 1 {
-		return fmtc.Sprintf("\t@echo \"{s}[%d/%d]{!} {c*}%s{!}\"\n", cur, total, text)
+		return fmtc.Sprintfn("\t@echo \"{s}[%d/%d]{!} {c*}%s{!}\"", cur, total, text)
 	}
 
-	return fmtc.Sprintf("\t@echo \"{c*}%s{!}\"\n", text)
+	return fmtc.Sprintfn("\t@echo \"{c*}%s{!}\"", text)
 }
 
 // getGoVersion returns current go version
