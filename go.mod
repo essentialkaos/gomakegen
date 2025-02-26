@@ -1,6 +1,7 @@
 module github.com/essentialkaos/gomakegen/v3
 
-go 1.22.8
+go 1.23.6
+
 require github.com/essentialkaos/ek/v13 v13.18.0
 
 require (
