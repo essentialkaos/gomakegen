@@ -1261,7 +1261,7 @@ func (m *Makefile) getLDFlags() string {
 
 // getActionText generates command with action description
 func getActionText(cur, total int, text string) string {
-	if total < 1 {
+	if total <= 1 {
 		return fmtc.Sprintfn("\t@echo \"{c*}%s{!}\"", text)
 	}
 
