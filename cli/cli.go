@@ -9,6 +9,7 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -1260,11 +1261,22 @@ func (m *Makefile) getLDFlags() string {
 
 // getActionText generates command with action description
 func getActionText(cur, total int, text string) string {
-	if total > 1 {
-		return fmtc.Sprintfn("\t@echo \"{s}[%d/%d]{!} {c*}%s{!}\"", cur, total, text)
+	if total < 1 {
+		return fmtc.Sprintfn("\t@echo \"{c*}%s{!}\"", text)
 	}
 
-	return fmtc.Sprintfn("\t@echo \"{c*}%s{!}\"", text)
+	var buf bytes.Buffer
+
+	buf.WriteString("\t@echo \"")
+	buf.WriteString(fmtc.Sprintf("{g}%s{!}", strings.Repeat("•", cur)))
+
+	if cur != total {
+		buf.WriteString(fmtc.Sprintf("{s-}%s{!}", strings.Repeat("•", total-cur)))
+	}
+
+	buf.WriteString(fmtc.Sprintf(" {c*}%s{!}\"\n", text))
+
+	return buf.String()
 }
 
 // getGoVersion returns current go version
