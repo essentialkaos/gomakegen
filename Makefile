@@ -34,15 +34,15 @@ GITREV ?= $(shell test -s $(MAKEDIR)/.git && git rev-parse --short HEAD)
 all: gomakegen ## Build all binaries
 
 gomakegen:
-	@echo "[32m•[0m [36;1mBuilding gomakegen…[0m"
+	@echo "[36;1mBuilding gomakegen…[0m"
 	@go build $(VERBOSE_FLAG) -ldflags="-s -w -X main.gitrev=$(GITREV)" gomakegen.go
 
 install: ## Install all binaries
-	@echo "[32m•[0m [36;1mInstalling binaries…[0m"
+	@echo "[36;1mInstalling binaries…[0m"
 	@cp gomakegen /usr/bin/gomakegen
 
 uninstall: ## Uninstall all binaries
-	@echo "[32m•[0m [36;1mRemoving installed binaries…[0m"
+	@echo "[36;1mRemoving installed binaries…[0m"
 	@rm -f /usr/bin/gomakegen
 
 init: mod-init ## Initialize new module
@@ -103,23 +103,23 @@ endif
 	@test -d vendor && rm -rf vendor && go mod vendor $(VERBOSE_FLAG) || :
 
 mod-download:
-	@echo "[32m•[0m [36;1mDownloading dependencies…[0m"
+	@echo "[36;1mDownloading dependencies…[0m"
 	@go mod download
 
 mod-vendor:
-	@echo "[32m•[0m [36;1mVendoring dependencies…[0m"
+	@echo "[36;1mVendoring dependencies…[0m"
 	@rm -rf vendor && go mod vendor $(VERBOSE_FLAG) || :
 
 fmt: ## Format source code with gofmt
-	@echo "[32m•[0m [36;1mFormatting sources…[0m"
+	@echo "[36;1mFormatting sources…[0m"
 	@find . -name "*.go" -exec gofmt -s -w {} \;
 
 vet: ## Runs 'go vet' over sources
-	@echo "[32m•[0m [36;1mRunning 'go vet' over sources…[0m"
+	@echo "[36;1mRunning 'go vet' over sources…[0m"
 	@go vet -composites=false -printfuncs=LPrintf,TLPrintf,TPrintf,log.Debug,log.Info,log.Warn,log.Error,log.Critical,log.Print ./...
 
 clean: ## Remove generated files
-	@echo "[32m•[0m [36;1mRemoving built binaries…[0m"
+	@echo "[36;1mRemoving built binaries…[0m"
 	@rm -f gomakegen
 
 help: ## Show this info
