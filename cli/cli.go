@@ -2,7 +2,7 @@ package cli
 
 // ////////////////////////////////////////////////////////////////////////////////// //
 //                                                                                    //
-//                         Copyright (c) 2024 ESSENTIAL KAOS                          //
+//                         Copyright (c) 2025 ESSENTIAL KAOS                          //
 //      Apache License, Version 2.0 <https://www.apache.org/licenses/LICENSE-2.0>     //
 //                                                                                    //
 // ////////////////////////////////////////////////////////////////////////////////// //
@@ -47,7 +47,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.2.3"
+	VER  = "3.3.0"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -746,7 +746,7 @@ func (m *Makefile) getPhony() string {
 	}
 
 	if m.ModUsed {
-		phony = append(phony, "mod-init", "mod-update", "mod-download", "mod-vendor")
+		phony = append(phony, "tidy", "mod-init", "mod-update", "mod-download", "mod-vendor")
 	}
 
 	phony = append(phony, "help")
@@ -1097,7 +1097,15 @@ func (m *Makefile) getModTarget() string {
 		return ""
 	}
 
-	result := "mod-init:\n"
+	result := "tidy: ## Cleanup dependencies\n"
+	result += getActionText(1, 1, "Tidying up dependencies…")
+	result += "ifdef COMPAT ## Compatible Go version (String)\n"
+	result += "\t@go mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT) -go=$(COMPAT)\n"
+	result += "else\n"
+	result += "\t@go mod tidy $(VERBOSE_FLAG)\n"
+	result += "endif\n\n"
+
+	result += "mod-init:\n"
 	result += getActionText(1, 3, "Modules initialization…")
 	result += "\t@rm -f go.mod go.sum\n"
 	result += "ifdef MODULE_PATH ## Module path for initialization (String)\n"
