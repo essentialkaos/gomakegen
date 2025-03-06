@@ -9,6 +9,7 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -47,7 +48,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.3.0"
+	VER  = "3.3.1"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
@@ -1098,12 +1099,14 @@ func (m *Makefile) getModTarget() string {
 	}
 
 	result := "tidy: ## Cleanup dependencies\n"
-	result += getActionText(1, 1, "Tidying up dependencies…")
+	result += getActionText(1, 2, "Tidying up dependencies…")
 	result += "ifdef COMPAT ## Compatible Go version (String)\n"
 	result += "\t@go mod tidy $(VERBOSE_FLAG) -compat=$(COMPAT) -go=$(COMPAT)\n"
 	result += "else\n"
 	result += "\t@go mod tidy $(VERBOSE_FLAG)\n"
-	result += "endif\n\n"
+	result += "endif\n"
+	result += getActionText(2, 2, "Updating vendored dependencies…")
+	result += "\t@test -d vendor && rm -rf vendor && go mod vendor $(VERBOSE_FLAG) || :\n\n"
 
 	result += "mod-init:\n"
 	result += getActionText(1, 3, "Modules initialization…")
@@ -1258,11 +1261,22 @@ func (m *Makefile) getLDFlags() string {
 
 // getActionText generates command with action description
 func getActionText(cur, total int, text string) string {
-	if total > 1 {
-		return fmtc.Sprintfn("\t@echo \"{s}[%d/%d]{!} {c*}%s{!}\"", cur, total, text)
+	if total < 1 {
+		return fmtc.Sprintfn("\t@echo \"{c*}%s{!}\"", text)
 	}
 
-	return fmtc.Sprintfn("\t@echo \"{c*}%s{!}\"", text)
+	var buf bytes.Buffer
+
+	buf.WriteString("\t@echo \"")
+	buf.WriteString(fmtc.Sprintf("{g}%s{!}", strings.Repeat("•", cur)))
+
+	if cur != total {
+		buf.WriteString(fmtc.Sprintf("{s-}%s{!}", strings.Repeat("•", total-cur)))
+	}
+
+	buf.WriteString(fmtc.Sprintf(" {c*}%s{!}\"\n", text))
+
+	return buf.String()
 }
 
 // getGoVersion returns current go version
