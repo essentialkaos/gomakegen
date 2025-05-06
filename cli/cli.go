@@ -48,7 +48,7 @@ import (
 // App info
 const (
 	APP  = "GoMakeGen"
-	VER  = "3.3.1"
+	VER  = "3.3.2"
 	DESC = "Utility for generating makefiles for Go applications"
 )
 
