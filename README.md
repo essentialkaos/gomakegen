@@ -1,7 +1,6 @@
 <p align="center"><a href="#readme"><img src=".github/images/card.svg"/></a></p>
 
 <p align="center">
-  <a href="https://kaos.sh/r/gomakegen"><img src="https://kaos.sh/r/gomakegen.svg" alt="GoReportCard" /></a>
   <a href="https://kaos.sh/y/gomakegen"><img src="https://kaos.sh/y/55b2a258de5b4f0b9a75da00802f149d.svg" alt="Codacy badge" /></a>
   <a href="https://kaos.sh/w/gomakegen/ci"><img src="https://kaos.sh/w/gomakegen/ci.svg" alt="GitHub Actions CI Status" /></a>
   <a href="https://kaos.sh/w/gomakegen/codeql"><img src="https://kaos.sh/w/gomakegen/codeql.svg" alt="GitHub Actions CodeQL Status" /></a>
